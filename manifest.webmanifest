@@ -1,7 +1,7 @@
 {
   "name": "Aqua Super",
   "short_name": "Aqua Super",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f2f7fb",
@@ -20,5 +20,6 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "prefer_related_applications": false
 }
