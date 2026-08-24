@@ -1,4 +1,4 @@
-const CACHE='aqua-super-pwa-v2';
+const CACHE='aqua-super-pwa-v3';
 const STATIC_ASSETS=[
   './',
   './index.html',
@@ -18,7 +18,9 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))
+      Promise.all(
+        keys.filter(key => key !== CACHE).map(key => caches.delete(key))
+      )
     ).then(() => self.clients.claim())
   );
 });
@@ -34,7 +36,8 @@ self.addEventListener('fetch', event => {
     url.pathname.endsWith('/');
 
   if (isHtml) {
-    // Always try the latest online HTML first; fall back to cache offline.
+    // Always try the latest HTML from GitHub Pages first.
+    // If offline, use the last cached copy.
     event.respondWith(
       fetch(event.request, { cache: 'no-store' })
         .then(response => {
@@ -42,14 +45,17 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE).then(cache => cache.put(event.request, copy));
           return response;
         })
-        .catch(() => caches.match(event.request).then(r =>
-          r || caches.match('./index.html') || caches.match('./Aqua_Super.html')
-        ))
+        .catch(() =>
+          caches.match(event.request).then(r =>
+            r ||
+            caches.match('./Aqua_Super.html') ||
+            caches.match('./index.html')
+          )
+        )
     );
     return;
   }
 
-  // Cache-first for icons/manifest and other static resources, with network fallback.
   event.respondWith(
     caches.match(event.request).then(cached =>
       cached ||
