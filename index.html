@@ -5,8 +5,6 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1,maximum-scale=1" name="viewport"/>
 <meta content="#075985" name="theme-color"/>
-<link rel="manifest" href="manifest.webmanifest"/>
-<link rel="icon" href="icon-192.png"/>
 <title>Aqua Super - HTML View Final</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f2f7fb;color:#17324d}
@@ -62,17 +60,20 @@ function aquaPaymentReminder(customer){
 <body>
 <div class="top"><h1>💧 Aqua Super</h1><p id="today"></p></div>
 <main id="main"></main>
-<nav style="grid-template-columns:repeat(5,1fr)">
+<nav>
 <button id="nHome" onclick="go('home')">🏠<br/>Home</button>
 <button id="nCust" onclick="go('customers')">👥<br/>Customers</button>
 <button id="nEntry" onclick="go('entry')">🚚<br/>Daily Entry</button>
-<button id="nLog" onclick="go('dailylog')">📋<br/>Daily Log</button>
 <button id="nHist" onclick="go('history')">🔎<br/>History</button>
 </nav>
 <div id="aquaGoogleDriveCard" style="margin:16px 12px 20px;padding:16px;border-radius:16px;background:#f0fdf4;border:1px solid #bbf7d0;">
-<div style="font-size:18px;font-weight:800;color:#166534;">☁️ Google Drive Backup</div>
-<div style="font-size:13px;color:#475569;margin:7px 0 12px;">पहली बार Google Login करें। उसके बाद रोज़ यहीं से backup सीधे Google Drive में जाएगा।</div>
-<button onclick="aquaDriveBackup()" style="width:100%;padding:13px;border:0;border-radius:12px;background:#16a34a;color:white;font-size:16px;font-weight:800;">☁️ Google Login / Backup</button>
+<div style="font-size:18px;font-weight:800;color:#166534;">☁️ Backup / Restore</div>
+<div style="font-size:13px;color:#475569;margin:7px 0 12px;">Backup सुरक्षित रखें और पुराने Aqua Super data को एक tap में restore करें।</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+<button onclick="aquaRestoreGitHubBackup()" style="padding:13px;border:0;border-radius:12px;background:#16a34a;color:white;font-size:14px;font-weight:800;">♻️ Restore Backup</button>
+<button onclick="backup()" style="padding:13px;border:0;border-radius:12px;background:#0ea5e9;color:white;font-size:14px;font-weight:800;">💾 Download Backup</button>
+</div>
+<div style="margin-top:9px;font-size:12px;color:#64748b;">24 Aug 2026 का सुरक्षित GitHub backup उपलब्ध है। Restore करने पर इस मोबाइल का मौजूदा local data replace होगा।</div>
 </div><script>
 var KEY="AQUA_SUPER_DATA_2";
 var db={customers:[],entries:[]};
@@ -109,8 +110,8 @@ function stat(c){
  for(var i=0;i<db.entries.length;i++){var e=db.entries[i];if(e.name===c.name){due+=e.amount-e.paid;jar+=e.jg-e.je;can+=e.cg-e.ce}}
  return {due:due,jar:jar,can:can}
 }
-function setNav(p){["nHome","nCust","nEntry","nLog","nHist"].forEach(function(id){var el=document.getElementById(id);if(el)el.className=""});var el=document.getElementById({home:"nHome",customers:"nCust",entry:"nEntry",dailylog:"nLog",history:"nHist"}[p]);if(el)el.className="active"}
-function go(p){setNav(p);if(p==="home")home();if(p==="customers")customers();if(p==="entry")entry();if(p==="dailylog")dailyLog();if(p==="history")history()}
+function setNav(p){["nHome","nCust","nEntry","nHist"].forEach(function(id){document.getElementById(id).className=""});document.getElementById({home:"nHome",customers:"nCust",entry:"nEntry",history:"nHist"}[p]).className="active"}
+function go(p){setNav(p);if(p==="home")home();if(p==="customers")customers();if(p==="entry")entry();if(p==="history")history()}
 document.getElementById("today").textContent=selectedDateLabel(dashboardDate);
 
 function home(){
@@ -147,7 +148,6 @@ function home(){
  '<div class="box"><div class="lbl">Can Given</div><div class="num">'+cg+'</div></div>'+
  '</div>'+
  '<div class="btns"><button onclick="go(\'customers\')">👤 Add / Search Customer</button><button onclick="go(\'entry\')">➕ New Daily Entry</button></div>'+
- '<div class="form"><button onclick="go(\'dailylog\')">📋 Today\'s Daily Log — '+db.entries.filter(function(e){return e.date===dateNow()}).length+' Entries</button></div>'+
  '<div class="form"><h2>🔴 Customers With Due</h2><div style="margin:10px 0 12px"><input id="dueCustomerSearch" type="search" placeholder="🔎 Customer name ya mobile number search karein..." oninput="filterDueCustomers(this.value)" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;background:#fff"></div><div id="dueList">'+dueList()+'</div></div>'+
  '<div class="form"><button onclick="backup()">💾 Backup Data</button><br><br><button onclick="document.getElementById(\'restore\').click()">♻️ Restore Backup</button><input id="restore" type="file" accept=".json" style="display:none" onchange="restore(this)"></div>';
 }
@@ -165,7 +165,7 @@ function dueList(){
  var out="";
  for(var i=0;i<arr.length;i++){
   var c=arr[i].c,st=arr[i].st,n=enc(c.name);
-  out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><a href="javascript:void(0)" onclick="openWhatsAppBusiness(\''+esc(c.mobile)+\'')" style="color:#16a34a;font-weight:700;text-decoration:none">📲 '+esc(c.mobile)+'</a> · <span class="red">'+money(st.due)+'</span><br><div class="btns" style="margin-top:7px">'+
+  out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><span class="small">'+esc(c.mobile)+'</span> · <span class="red">'+money(st.due)+'</span><br><div class="btns" style="margin-top:7px">'+
    '<button style="padding:8px" onclick="sendWAByName(\''+n+'\')">📲 WhatsApp Due</button>'+
    '<button style="margin-top:7px;padding:8px;background:#2563eb;color:#fff;border:0;border-radius:8px" onclick="sendLatestSMS(\''+n+'\')">💬 SIM SMS</button>'+
    '<button style="padding:8px;background:#16a34a" onclick="sendPaymentReminder(\''+n+'\')">💰 Payment Reminder</button>'+
@@ -196,7 +196,7 @@ function customers(){
 }
 function customerList(){
  var q=(document.getElementById("q").value||"").toLowerCase(),out="";
- for(var i=0;i<db.customers.length;i++){var c=db.customers[i];if(c.name.toLowerCase().indexOf(q)>=0||String(c.mobile).indexOf(q)>=0){var s=stat(c);out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><span class="small"><a href="javascript:void(0)" onclick="openWhatsAppBusiness(\''+esc(c.mobile)+\'')" style="color:#16a34a;font-weight:700;text-decoration:none">📲 '+esc(c.mobile)+'</a> · '+esc(c.address)+'</span><br>Due: <b class="red">'+money(s.due)+'</b> · Jar: <b>'+s.jar+'</b> · Can: <b>'+s.can+'</b>+customerRecentInfo(c)<br><div class="btns" style="margin:8px 0 0"><button onclick="editCustomerByName(\''+enc(c.name)+'\')" style="padding:9px">✏️ Edit</button><button onclick="deleteCustomerByName(\''+enc(c.name)+'\')" style="padding:9px;background:#dc2626">🗑️ Delete</button></div></div>'}}
+ for(var i=0;i<db.customers.length;i++){var c=db.customers[i];if(c.name.toLowerCase().indexOf(q)>=0||String(c.mobile).indexOf(q)>=0){var s=stat(c);out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><span class="small">'+esc(c.mobile)+' · '+esc(c.address)+'</span><br>Due: <b class="red">'+money(s.due)+'</b> · Jar: <b>'+s.jar+'</b> · Can: <b>'+s.can+'</b>+customerRecentInfo(c)<br><div class="btns" style="margin:8px 0 0"><button onclick="editCustomerByName(\''+enc(c.name)+'\')" style="padding:9px">✏️ Edit</button><button onclick="deleteCustomerByName(\''+enc(c.name)+'\')" style="padding:9px;background:#dc2626">🗑️ Delete</button></div></div>'}}
  document.getElementById("cl").innerHTML=out||'<p class="small">Customer nahi mila.</p>';
 }
 function addCustomer(){
@@ -236,19 +236,9 @@ function editCustomerByName(encodedName){
  c.address=String(newAddress).trim();
  c.jarRate=Number(newJarRate)||0;
  c.canRate=Number(newCanRate)||0;
- // Store adjusted base balances so stat() returns the edited CURRENT values.
- var entryDue=0,entryJar=0,entryCan=0;
- for(var ei=0;ei<db.entries.length;ei++){
-   var ee=db.entries[ei];
-   if(ee.name===oldName){
-     entryDue+=(Number(ee.amount)||0)-(Number(ee.paid)||0);
-     entryJar+=(Number(ee.jg)||0)-(Number(ee.je)||0);
-     entryCan+=(Number(ee.cg)||0)-(Number(ee.ce)||0);
-   }
- }
- c.openDue=(Number(newDue)||0)-entryDue;
- c.openJar=(Number(newJarBal)||0)-entryJar;
- c.openCan=(Number(newCanBal)||0)-entryCan;
+ c.openDue=Number(newDue)||0;
+ c.openJar=Number(newJarBal)||0;
+ c.openCan=Number(newCanBal)||0;
  c.updatedAt=new Date().toISOString();
  if(oldName!==newName){
    for(var i=0;i<db.entries.length;i++){
@@ -386,13 +376,13 @@ function preview(){
 }
 function saveEntry(wa){
  var c=cget(document.getElementById("en").value),jg=+document.getElementById("jg").value||0,je=+document.getElementById("je").value||0,cg=+document.getElementById("cg").value||0,ce=+document.getElementById("ce").value||0,p=+document.getElementById("pay").value||0,s=stat(c),jarRate=+document.getElementById("ejr").value||0,canRate=+document.getElementById("ecr").value||0,amount=jg*jarRate+cg*canRate;
- var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due,createdAt:new Date().toISOString()};
+ var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due};
  db.entries.push(e);c.updatedAt=new Date().toISOString();save();
  if(wa){sendWA(e,c)}else{alert("Entry save ho gayi.");go("home")}
 }
 function saveEntrySMS(){
  var c=cget(document.getElementById("en").value),jg=+document.getElementById("jg").value||0,je=+document.getElementById("je").value||0,cg=+document.getElementById("cg").value||0,ce=+document.getElementById("ce").value||0,p=+document.getElementById("pay").value||0,s=stat(c),jarRate=+document.getElementById("ejr").value||0,canRate=+document.getElementById("ecr").value||0,amount=jg*jarRate+cg*canRate;
- var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due,createdAt:new Date().toISOString()};
+ var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due};
  db.entries.push(e);c.updatedAt=new Date().toISOString();save();sendSMS(e,c);
 }
 function message(e,c){
@@ -471,13 +461,6 @@ function sendLatestSMS(encodedName){
   sendSMS(es[es.length-1],c);
  }catch(err){alert("SMS open nahi ho saka: "+err.message);}
 }
-function openWhatsAppBusiness(phone,text){
- var p=normalizeIndiaNumber(String(phone||''));
- if(p.length<12){alert('Customer mobile number sahi 10 digit Indian number hona chahiye.');return;}
- var t=encodeURIComponent(text||'');
- var url='intent://send?phone='+p+(t?'&text='+t:'')+'#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end';
- try{location.href=url;}catch(err){alert('WhatsApp Business open nahi ho saka.');}
-}
 function sendWA(e,c){
  var phone=normalizeIndiaNumber(c.mobile);
  if(phone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
@@ -498,18 +481,6 @@ function confirmWASend(){
  },1000);
 }
 function sendWAByName(n){var c=cget(dec(n)),es=db.entries.filter(function(e){return e.name===c.name});var e=es.length?es[es.length-1]:{jg:0,cg:0,je:0,ce:0,amount:0,paid:0,previousDue:stat(c).due};sendWA(e,c)}
-function dailyLog(){
- var d=window._dailyLogDate||dateNow(),list=[];
- for(var i=0;i<db.entries.length;i++){var e=db.entries[i];if(e.date===d)list.push({e:e,idx:i});}
- list.sort(function(a,b){var at=a.e.createdAt?new Date(a.e.createdAt).getTime():NaN,bt=b.e.createdAt?new Date(b.e.createdAt).getTime():NaN;if(isFinite(at)&&isFinite(bt))return at-bt;if(isFinite(at))return -1;if(isFinite(bt))return 1;return a.idx-b.idx;});
- var total=list.length,totalWater=0,totalAmount=0,totalPaid=0;
- for(var j=0;j<list.length;j++){totalWater+=(Number(list[j].e.jg)||0)+(Number(list[j].e.cg)||0);totalAmount+=Number(list[j].e.amount)||0;totalPaid+=Number(list[j].e.paid)||0;}
- var out='<div class="form"><h2>📋 Daily Log</h2><label>📅 Select Date</label><input id="dailyLogDate" type="date" value="'+d+'" max="'+dateNow()+'" onchange="window._dailyLogDate=this.value;dailyLog()"><div class="grid" style="margin-top:12px"><div class="box"><div class="lbl">Total Entries</div><div class="num">'+total+'</div></div><div class="box"><div class="lbl">Water Items</div><div class="num">'+totalWater+'</div></div><div class="box"><div class="lbl">Total Amount</div><div class="num">'+money(totalAmount)+'</div></div><div class="box"><div class="lbl">Payment</div><div class="num">'+money(totalPaid)+'</div></div></div></div>';
- if(!list.length) out+='<div class="form"><div class="item"><b>Is date par koi entry nahi hai.</b><br><span class="small">Jab aap Daily Entry save karenge, yahan serial-wise record aa jayega.</span></div></div>';
- else{out+='<div class="form"><h2>📝 '+selectedDateLabel(d)+' — '+total+' Entries</h2>';for(var k=0;k<list.length;k++){var e=list[k].e,c=cget(e.name),t=e.createdAt?new Date(e.createdAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"Time not recorded",detail=[];if(Number(e.jg||0)>0)detail.push("Jar Given: "+(e.jg||0));if(Number(e.je||0)>0)detail.push("Empty Jar: "+(e.je||0));if(Number(e.cg||0)>0)detail.push("Can Given: "+(e.cg||0));if(Number(e.ce||0)>0)detail.push("Empty Can: "+(e.ce||0));if(!detail.length&&Number(e.paid||0)>0)detail.push("Payment Received: "+money(e.paid));out+='<div class="item"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><b>#'+(k+1)+' · '+esc(e.name)+' Ji</b><span class="small" style="white-space:nowrap">🕒 '+esc(t)+'</span></div><div class="small" style="margin-top:5px">'+esc(detail.join(" · ")||"Entry")+'</div><div style="margin-top:5px">Amount: <b>'+money(e.amount||0)+'</b> · Payment: <b>'+money(e.paid||0)+'</b>'+(c?'<br><span class="small">📍 '+esc(c.address||"")+'</span>':'')+'</div></div>';}out+='</div>';}
- document.getElementById("main").innerHTML=out;
-}
-
 function history(){
  document.getElementById("main").innerHTML='<div class="form"><h2>🔎 Customer Lifetime History</h2><label>Search Name / Mobile</label><input id="hq" oninput="historyList()" placeholder="Customer search"><div id="hl"></div></div>';historyList();
 }
@@ -528,110 +499,14 @@ function historyList(){
  }
  document.getElementById("hl").innerHTML=out||'<p class="small">Customer nahi mila.</p>';
 }
-
-function pdfEsc(s){return String(s??'').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');}
-function pdfText(text,x,y,size,font){return 'BT\n/'+(font||'F1')+' '+(size||9)+' Tf\n1 0 0 1 '+x+' '+y+' Tm ('+pdfEsc(text)+') Tj\nET\n';}
-function statementDay(dateStr){
- try{return new Date(dateStr+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short'});}catch(e){return '-';}
-}
-function buildStatementPDF(c,from,to,es,totalWater,totalAmount,totalPaid,closing){
- var pageW=595,pageH=842,left=28,right=28,top=800,bottom=45;
- var objs=[];function obj(x){objs.push(x);return objs.length;}
- var fontId=obj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
- var boldId=obj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
- var pages=[];
- var col=[left,84,128,198,265,350,430,500];
- var headers=['Date','Day','Time','Water','Amount','Payment','Balance'];
- var rowH=20;
- function makePage(){var p={content:'',y:top};p.content+='0.85 w\n';pages.push(p);return p;}
- var pg=makePage();
- function line(x1,y1,x2,y2){pg.content+=x1+' '+y1+' m '+x2+' '+y2+' l S\n';}
- function text(t,x,y,size,font){pg.content+=pdfText(t,x,y,size,font);}
- text('AQUA SUPER - CUSTOMER STATEMENT',left,top,15,'F2');
- text('Customer: '+c.name+' Ji',left,top-24,10,'F2');
- text('Mobile: '+(c.mobile||'-'),left,top-40,9,'F1');
- text('Address: '+(c.address||'-'),left,top-55,9,'F1');
- text('Period: '+fmt(from)+' to '+fmt(to),left,top-70,9,'F1');
- pg.y=top-92;
- function tableHeader(){
-   var y=pg.y; pg.content+='0.90 w\n';
-   line(left,y+5,567,y+5); line(left,y-rowH+5,567,y-rowH+5);
-   for(var i=0;i<headers.length;i++) text(headers[i],col[i]+4,y-10,8,'F2');
-   pg.y-=rowH;
- }
- tableHeader();
- for(var i=0;i<es.length;i++){
-   if(pg.y<bottom+130){pg=makePage(); text('AQUA SUPER - CUSTOMER STATEMENT (continued)',left,top,12,'F2'); pg.y=top-25; tableHeader();}
-   var e=es[i],water=(Number(e.jg)||0)+(Number(e.cg)||0),balance=(Number(e.previousDue)||0)+(Number(e.amount)||0)-(Number(e.paid)||0),tm=e.createdAt?new Date(e.createdAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'-';
-   var vals=[fmt(e.date),statementDay(e.date),tm,String(water),'Rs.'+(Number(e.amount)||0),'Rs.'+(Number(e.paid)||0),'Rs.'+balance];
-   var y=pg.y;
-   for(var j=0;j<vals.length;j++) text(vals[j],col[j]+4,y-13,7.6,'F1');
-   line(left,y-rowH+5,567,y-rowH+5);
-   pg.y-=rowH;
- }
- if(!es.length) text('No entries found for this date range.',left+4,pg.y-13,9,'F1');
- if(pg.y<bottom+115){pg=makePage();text('AQUA SUPER - CUSTOMER STATEMENT (continued)',left,top,12,'F2');pg.y=top-30;}
- var sy=pg.y-10;
- text('SUMMARY',left,sy,11,'F2');
- text('Total Water / Jar / Can: '+totalWater,left,sy-18,9,'F1');
- text('Total Amount: Rs.'+totalAmount,left,sy-34,9,'F1');
- text('Total Payment: Rs.'+totalPaid,left,sy-50,9,'F1');
- text('Closing Due (selected range): Rs.'+closing,left,sy-66,9,'F1');
- text('Current Due: Rs.'+stat(c).due,left,sy-82,9,'F2');
- text('Generated by Aqua Super',left,sy-105,8,'F1');
- var pageIds=[];
- for(var pi=0;pi<pages.length;pi++){
-   var content=pages[pi].content;
-   var contentId=obj('<< /Length '+content.length+' >>\nstream\n'+content+'endstream');
-   var pageId=obj(''); pageIds.push(pageId);
-   objs[pageId-1]='<< /Type /Page /Parent PAGES /MediaBox [0 0 '+pageW+' '+pageH+'] /Resources << /Font << /F1 '+fontId+' 0 R /F2 '+boldId+' 0 R >> >> /Contents '+contentId+' 0 R >>';
- }
- var kids=pageIds.map(function(id){return id+' 0 R';}).join(' ');
- var pagesId=obj('<< /Type /Pages /Kids ['+kids+'] /Count '+pageIds.length+' >>');
- for(var pi=0;pi<pageIds.length;pi++) objs[pageIds[pi]-1]=objs[pageIds[pi]-1].replace('PAGES',pagesId+' 0 R');
- var catalogId=obj('<< /Type /Catalog /Pages '+pagesId+' 0 R >>');
- var pdf='%PDF-1.4\n',offs=[0];
- for(var oi=0;oi<objs.length;oi++){offs[oi+1]=pdf.length;pdf+=(oi+1)+' 0 obj\n'+objs[oi]+'\nendobj\n';}
- var xref=pdf.length;pdf+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n';
- for(var oi=1;oi<=objs.length;oi++) pdf+=String(offs[oi]).padStart(10,'0')+' 00000 n \n';
- pdf+='trailer\n<< /Size '+(objs.length+1)+' /Root '+catalogId+' 0 R >>\nstartxref\n'+xref+'\n%%EOF';
- return new Blob([pdf],{type:'application/pdf'});
-}
-function statementEntries(c,from,to){
- return db.entries.filter(function(e){return e.name===c.name&&e.date&&e.date>=from&&e.date<=to;}).sort(function(a,b){var ad=(a.createdAt||a.date),bd=(b.createdAt||b.date);return ad<bd?-1:ad>bd?1:0;});
-}
-function getStatementRange(c){
- var es=db.entries.filter(function(e){return e.name===c.name&&e.date;}).sort(function(a,b){return a.date.localeCompare(b.date);});
- var today=dateNow(),first=es.length?es[0].date:today,last=es.length?es[es.length-1].date:today;
- return {first:first,last:last};
-}
-function generateCustomerStatementPDF(encodedName,doShare){
- try{
-  var c=cget(dec(encodedName)); if(!c)return;
-  var fromEl=document.getElementById('stmtFrom'),toEl=document.getElementById('stmtTo');
-  var from=fromEl&&fromEl.value?fromEl.value:getStatementRange(c).first;
-  var to=toEl&&toEl.value?toEl.value:dateNow();
-  if(from>to){alert('From Date, To Date se badi nahi ho sakti.');return;}
-  var es=statementEntries(c,from,to),totalWater=0,totalAmount=0,totalPaid=0;
-  for(var i=0;i<es.length;i++){var e=es[i];totalWater+=(Number(e.jg)||0)+(Number(e.cg)||0);totalAmount+=Number(e.amount)||0;totalPaid+=Number(e.paid)||0;}
-  var closing=es.length?((Number(es[es.length-1].previousDue)||0)+(Number(es[es.length-1].amount)||0)-(Number(es[es.length-1].paid)||0)):stat(c).due;
-  var blob=buildStatementPDF(c,from,to,es,totalWater,totalAmount,totalPaid,closing),safe=String(c.name).replace(/[^a-z0-9]+/gi,'_')||'Customer';
-  var file=new File([blob], 'Aqua_Super_'+safe+'_Statement_'+from+'_to_'+to+'.pdf',{type:'application/pdf'});
-  if(doShare && navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
-    navigator.share({title:'Aqua Super Customer Statement',text:c.name+' Ji - '+fmt(from)+' to '+fmt(to),files:[file]}).catch(function(){});
-  }else{
-    var a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},1500);
-    if(doShare)setTimeout(function(){alert('PDF download ho gaya. Ab Share/WhatsApp se PDF bhej sakte hain.');},500);
-  }
- }catch(err){alert('PDF banane mein problem: '+err.message);}
-}
 function openCustomerLifetime(n){
  var c=cget(dec(n));
  if(!c)return;
  var es=db.entries.filter(function(e){return e.name===c.name}).sort(function(a,b){return b.date.localeCompare(a.date)});
  var out='<div class="form"><button onclick="history()" style="width:auto;padding:8px 12px">← Back to History</button>'+
  '<h2>📅 '+esc(c.name)+' Ji – Full Lifetime History</h2>'+
- '<div class="item"><b>Mobile:</b> <a href="javascript:void(0)" onclick="openWhatsAppBusiness(\''+esc(c.mobile)+\'')" style="color:#16a34a;font-weight:700;text-decoration:none">📲 '+esc(c.mobile)+'</a><br><b>Address:</b> '+esc(c.address)+'<br><b>Current Due:</b> <span class="red">'+money(stat(c).due)+'</span><br><b>Jar Balance:</b> '+stat(c).jar+' · <b>Can Balance:</b> '+stat(c).can+'</div>' + '<div class="item"><h3>📄 Customer Statement PDF</h3><div class="grid"><div><label>From Date</label><input id="stmtFrom" type="date"></div><div><label>To Date</label><input id="stmtTo" type="date" value="'+dateNow()+'"></div></div><div class="btns" style="margin-top:10px"><button onclick="generateCustomerStatementPDF(window._statementCustomer,false)">📄 Generate PDF</button><button onclick="generateCustomerStatementPDF(window._statementCustomer,true)" style="background:#16a34a">📲 Share PDF / WhatsApp</button></div><div class="small" style="margin-top:7px">Date range select karke customer ka date-wise pani, amount, payment aur balance PDF mein milega.</div></div>'; if(!es.length){out+='<div class="item">Is customer ki koi daily entry nahi hai.</div>'}
+ '<div class="item"><b>Mobile:</b> '+esc(c.mobile)+'<br><b>Address:</b> '+esc(c.address)+'<br><b>Current Due:</b> <span class="red">'+money(stat(c).due)+'</span><br><b>Jar Balance:</b> '+stat(c).jar+' · <b>Can Balance:</b> '+stat(c).can+'</div>';
+ if(!es.length){out+='<div class="item">Is customer ki koi daily entry nahi hai.</div>'}
  else{
   for(var k=0;k<es.length;k++){
    var e=es[k],dt=new Date(e.date+'T00:00:00'),day=isNaN(dt)?'':dt.toLocaleDateString('en-IN',{weekday:'long'});
@@ -643,9 +518,7 @@ function openCustomerLifetime(n){
   }
  }
  out+='</div>';
- window._statementCustomer=enc(c.name);
  document.getElementById("main").innerHTML=out;
- var rr=getStatementRange(c); var sf=document.getElementById('stmtFrom'); if(sf) sf.value=rr.first;
 }
 
 function backup(){
@@ -806,6 +679,24 @@ document.addEventListener("DOMContentLoaded",function(){
 
 /* Aqua Super - Google Drive Backup from local HTML */
 const AQUA_BACKUP_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgcIYXRDoUP7nYXrC8TzbF-hI-CTKhVncnWX7yViF97uAXBjto5nsGXvXXGjNrjdcwIQ/exec";
+
+async function aquaRestoreGitHubBackup(){
+  var url="https://aqua-super.github.io/Aqua-Super/Aqua_Super_Backup_2026-08-24.json";
+  if(!confirm("24 Aug 2026 ka backup restore karna hai?\n\nIs mobile ka current local data replace ho jayega.")) return;
+  try{
+    var res=await fetch(url,{cache:"no-store"});
+    if(!res.ok) throw new Error("Backup file nahi mili ("+res.status+")");
+    var x=await res.json();
+    if(!x || !Array.isArray(x.customers) || !Array.isArray(x.entries)) throw new Error("Backup format galat hai");
+    db=x;
+    localStorage.setItem(KEY,JSON.stringify(db));
+    alert("Backup restore ho gaya.\n\nCustomers: "+db.customers.length+"\nEntries: "+db.entries.length);
+    location.reload();
+  }catch(e){
+    console.error(e);
+    alert("Backup restore nahi ho saka.\n\n"+e.message+"\n\nAgar GitHub backup file available hai, pehle Visit Site ko reload karein.");
+  }
+}
 
 function aquaDriveBackup(){
   if(!AQUA_BACKUP_WEB_APP_URL || AQUA_BACKUP_WEB_APP_URL.indexOf("/exec")===-1){
@@ -984,6 +875,5 @@ function aquaImportOldBackup(){
 })();
 </script>
 
-<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("./sw.js").catch(function(){});});}</script>
 </body>
 </html>
