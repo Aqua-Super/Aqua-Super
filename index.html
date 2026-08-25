@@ -6,12 +6,6 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1,maximum-scale=1" name="viewport"/>
 <meta content="#075985" name="theme-color"/>
-<link rel="manifest" href="./manifest.webmanifest"/>
-<link rel="icon" href="./icon-192.png" type="image/png"/>
-<meta name="mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
-<meta name="apple-mobile-web-app-title" content="Aqua Super"/>
 <title>Aqua Super - Final PWA</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f2f7fb;color:#17324d}
@@ -65,7 +59,7 @@ function aquaPaymentReminder(customer){
 </style>
 </head>
 <body>
-<div class="top"><h1>💧 Aqua Super</h1><p id="today"></p><button id="installAppBtn" type="button" onclick="installAquaApp()" style="display:none;margin-top:12px;width:auto;padding:9px 14px;background:#fff;color:#075985;border-radius:10px;font-size:14px">📲 Install Aqua Super</button></div>
+<div class="top"><h1>💧 Aqua Super</h1><p id="today"></p></div>
 <main id="main"></main>
 <nav>
 <button id="nHome" onclick="go('home')">🏠<br/>Home</button>
@@ -78,6 +72,8 @@ function aquaPaymentReminder(customer){
 <div style="font-size:18px;font-weight:800;color:#166534;">☁️ Google Drive Backup</div>
 <div style="font-size:13px;color:#475569;margin:7px 0 12px;">पहली बार Google Login करें। उसके बाद रोज़ यहीं से backup सीधे Google Drive में जाएगा।</div>
 <button onclick="aquaDriveBackup()" style="width:100%;padding:13px;border:0;border-radius:12px;background:#16a34a;color:white;font-size:16px;font-weight:800;">☁️ Google Login / Backup</button>
+<button onclick="aquaShowGoogleDriveRestore()" style="width:100%;padding:13px;border:0;border-radius:12px;background:#2563eb;color:white;font-size:16px;font-weight:800;margin-top:10px;">♻️ Restore from Google Drive</button>
+<div id="aquaGoogleDriveRestoreList" style="margin-top:10px;"></div>
 </div><div id="aquaDataStatus" style="margin:0 12px 14px;padding:10px 12px;border-radius:12px;background:#eff6ff;color:#075985;font-size:12px;text-align:center">✅ Latest Aqua Super data package loaded · 25-Aug latest data</div><script>
 var KEY="AQUA_SUPER_DATA_FINAL_2026_08_25";
 var db={customers:[],entries:[]};
@@ -794,6 +790,121 @@ function aquaDriveBackup(){
 
 
 
+/* Aqua Super - Google Drive Restore */
+function aquaJsonp(url, callbackName, timeoutMs){
+  return new Promise(function(resolve,reject){
+    var script=document.createElement("script");
+    var timer=setTimeout(function(){
+      cleanup();
+      reject(new Error("Google Drive response timeout"));
+    }, timeoutMs || 15000);
+
+    function cleanup(){
+      clearTimeout(timer);
+      if(script.parentNode) script.parentNode.removeChild(script);
+      try{ delete window[callbackName]; }catch(e){ window[callbackName]=undefined; }
+    }
+
+    window[callbackName]=function(data){
+      cleanup();
+      resolve(data);
+    };
+
+    script.src=url+(url.indexOf("?")>=0?"&":"?")+"callback="+encodeURIComponent(callbackName)+"&_="+Date.now();
+    script.onerror=function(){
+      cleanup();
+      reject(new Error("Google Drive request failed"));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+function aquaShowGoogleDriveRestore(){
+  var box=document.getElementById("aquaGoogleDriveRestoreList");
+  if(!box)return;
+
+  box.innerHTML='<div style="padding:12px;border-radius:10px;background:#eff6ff;color:#075985;font-size:13px;text-align:center">☁️ Google Drive backups load ho rahe hain...</div>';
+
+  if(!AQUA_BACKUP_WEB_APP_URL || AQUA_BACKUP_WEB_APP_URL.indexOf("/exec")===-1){
+    box.innerHTML='<div style="padding:12px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px">Google Drive Web App URL set nahi hai.</div>';
+    return;
+  }
+
+  var cb="aquaDriveList_"+Date.now();
+  var url=AQUA_BACKUP_WEB_APP_URL+"?action=list";
+
+  aquaJsonp(url,cb,20000).then(function(res){
+    if(!res || !res.success){
+      throw new Error(res && res.error ? res.error : "Backup list nahi mili.");
+    }
+
+    var files=res.files||[];
+    if(!files.length){
+      box.innerHTML='<div style="padding:12px;border-radius:10px;background:#f8fafc;color:#64748b;font-size:13px">Google Drive mein abhi koi Aqua Super backup nahi mila.</div>';
+      return;
+    }
+
+    var out='<div style="padding:12px;border:1px solid #bfdbfe;border-radius:12px;background:#f8fbff">'+
+      '<div style="font-weight:800;color:#075985;margin-bottom:8px">☁️ Google Drive Backups</div>'+
+      '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Jis date ka backup wapas lana hai uske saamne Restore dabayein.</div>';
+
+    files.forEach(function(f){
+      var safeId=encodeURIComponent(f.id);
+      out+='<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid #e2e8f0">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:700;font-size:13px;word-break:break-word">'+esc(f.name)+'</div>'+
+          '<div style="font-size:11px;color:#64748b;margin-top:3px">'+esc(f.updatedAt||"")+'</div>'+
+        '</div>'+
+        '<button onclick="aquaRestoreGoogleDriveBackup(\''+safeId+'\')" style="width:auto;padding:8px 11px;background:#2563eb;color:#fff;font-size:12px">♻️ Restore</button>'+
+      '</div>';
+    });
+
+    out+='</div>';
+    box.innerHTML=out;
+  }).catch(function(err){
+    box.innerHTML='<div style="padding:12px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px">Google Drive backups load nahi ho sake.<br>'+esc(err.message||err)+'</div>';
+  });
+}
+
+function aquaRestoreGoogleDriveBackup(encodedFileId){
+  var fileId=decodeURIComponent(encodedFileId||"");
+  if(!fileId)return;
+
+  if(!confirm("Google Drive se ye Aqua Super backup restore karna hai?\\n\\nCurrent app data replace ho jayega. Pehle zaroori ho to normal backup download kar lein.")) return;
+
+  var box=document.getElementById("aquaGoogleDriveRestoreList");
+  if(box) box.innerHTML='<div style="padding:12px;border-radius:10px;background:#eff6ff;color:#075985;font-size:13px;text-align:center">♻️ Google Drive backup restore ho raha hai...</div>';
+
+  var cb="aquaDriveGet_"+Date.now();
+  var url=AQUA_BACKUP_WEB_APP_URL+"?action=get&fileId="+encodeURIComponent(fileId);
+
+  aquaJsonp(url,cb,30000).then(function(res){
+    if(!res || !res.success || !res.data){
+      throw new Error(res && res.error ? res.error : "Backup data nahi mili.");
+    }
+
+    var x;
+    try{
+      x=JSON.parse(res.data);
+    }catch(e){
+      throw new Error("Google Drive backup JSON valid nahi hai.");
+    }
+
+    if(!x || !Array.isArray(x.customers) || !Array.isArray(x.entries)){
+      throw new Error("Ye valid Aqua Super backup nahi hai.");
+    }
+
+    db=x;
+    localStorage.setItem(KEY,JSON.stringify(db));
+
+    alert("✅ Google Drive backup restore ho gaya.\\n\\nCustomers: "+db.customers.length+"\\nEntries: "+db.entries.length);
+    location.reload();
+  }).catch(function(err){
+    if(box) box.innerHTML='<div style="padding:12px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px">Restore nahi ho saka.<br>'+esc(err.message||err)+'</div>';
+    alert("Google Drive restore nahi ho saka.\\n\\n"+(err.message||err));
+  });
+}
+
 function aquaImportOldBackup(){
   var input=document.createElement("input");
   input.type="file"; input.accept=".json,application/json";
@@ -875,39 +986,5 @@ function aquaImportOldBackup(){
   };
 })();
 </script>
-<div style="font-size:11px;text-align:center;opacity:.7;padding:8px">SIM 2: 7031426550 (Android Messaging app will choose the SIM)</div>
-<script id="aquaPWAInstall">
-(function(){
-  var deferredPrompt=null;
-  var btn=document.getElementById("installAppBtn");
-  function showInstall(){if(btn && !window.matchMedia("(display-mode: standalone)").matches) btn.style.display="inline-block";}
-  window.addEventListener("beforeinstallprompt",function(e){
-    e.preventDefault();
-    deferredPrompt=e;
-    showInstall();
-  });
-  window.addEventListener("appinstalled",function(){
-    deferredPrompt=null;
-    if(btn) btn.style.display="none";
-  });
-  window.installAquaApp=async function(){
-    if(deferredPrompt){
-      deferredPrompt.prompt();
-      try{await deferredPrompt.userChoice;}catch(e){}
-      deferredPrompt=null;
-      if(btn) btn.style.display="none";
-      return;
-    }
-    alert("Aqua Super PWA ready hai. Chrome ke ⋮ menu me 'Install app' / 'Install' option dekhein. Agar abhi option na aaye to page ko ek baar refresh karke 10-20 second wait karein.");
-  };
-  if("serviceWorker" in navigator){
-    window.addEventListener("load",function(){
-      navigator.serviceWorker.register("./sw.js",{scope:"./"}).then(function(reg){
-        if(reg.waiting) reg.waiting.postMessage({type:"SKIP_WAITING"});
-      }).catch(function(err){console.log("Aqua Super Service Worker:",err);});
-    });
-  }
-})();
-</script>
-</body>
+<div style="font-size:11px;text-align:center;opacity:.7;padding:8px">SIM 2: 7031426550 (Android Messaging app will choose the SIM)</div></body>
 </html>
