@@ -6,6 +6,12 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1,maximum-scale=1" name="viewport"/>
 <meta content="#075985" name="theme-color"/>
+<link rel="manifest" href="./manifest.webmanifest"/>
+<link rel="icon" href="./icon-192.png" type="image/png"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="Aqua Super"/>
 <title>Aqua Super - Final PWA</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f2f7fb;color:#17324d}
@@ -59,7 +65,7 @@ function aquaPaymentReminder(customer){
 </style>
 </head>
 <body>
-<div class="top"><h1>💧 Aqua Super</h1><p id="today"></p></div>
+<div class="top"><h1>💧 Aqua Super</h1><p id="today"></p><button id="installAppBtn" type="button" onclick="installAquaApp()" style="display:none;margin-top:12px;width:auto;padding:9px 14px;background:#fff;color:#075985;border-radius:10px;font-size:14px">📲 Install Aqua Super</button></div>
 <main id="main"></main>
 <nav>
 <button id="nHome" onclick="go('home')">🏠<br/>Home</button>
@@ -869,5 +875,39 @@ function aquaImportOldBackup(){
   };
 })();
 </script>
-<div style="font-size:11px;text-align:center;opacity:.7;padding:8px">SIM 2: 7031426550 (Android Messaging app will choose the SIM)</div></body>
+<div style="font-size:11px;text-align:center;opacity:.7;padding:8px">SIM 2: 7031426550 (Android Messaging app will choose the SIM)</div>
+<script id="aquaPWAInstall">
+(function(){
+  var deferredPrompt=null;
+  var btn=document.getElementById("installAppBtn");
+  function showInstall(){if(btn && !window.matchMedia("(display-mode: standalone)").matches) btn.style.display="inline-block";}
+  window.addEventListener("beforeinstallprompt",function(e){
+    e.preventDefault();
+    deferredPrompt=e;
+    showInstall();
+  });
+  window.addEventListener("appinstalled",function(){
+    deferredPrompt=null;
+    if(btn) btn.style.display="none";
+  });
+  window.installAquaApp=async function(){
+    if(deferredPrompt){
+      deferredPrompt.prompt();
+      try{await deferredPrompt.userChoice;}catch(e){}
+      deferredPrompt=null;
+      if(btn) btn.style.display="none";
+      return;
+    }
+    alert("Aqua Super PWA ready hai. Chrome ke ⋮ menu me 'Install app' / 'Install' option dekhein. Agar abhi option na aaye to page ko ek baar refresh karke 10-20 second wait karein.");
+  };
+  if("serviceWorker" in navigator){
+    window.addEventListener("load",function(){
+      navigator.serviceWorker.register("./sw.js",{scope:"./"}).then(function(reg){
+        if(reg.waiting) reg.waiting.postMessage({type:"SKIP_WAITING"});
+      }).catch(function(err){console.log("Aqua Super Service Worker:",err);});
+    });
+  }
+})();
+</script>
+</body>
 </html>
