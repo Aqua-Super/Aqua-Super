@@ -165,7 +165,7 @@ function dueList(){
  var out="";
  for(var i=0;i<arr.length;i++){
   var c=arr[i].c,st=arr[i].st,n=enc(c.name);
-  out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><span class="small">'+esc(c.mobile)+'</span> · <span class="red">'+money(st.due)+'</span><br><div class="btns" style="margin-top:7px">'+
+  out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><a href="javascript:void(0)" onclick="openWhatsAppBusiness(\''+esc(c.mobile)+\'')" style="color:#16a34a;font-weight:700;text-decoration:none">📲 '+esc(c.mobile)+'</a> · <span class="red">'+money(st.due)+'</span><br><div class="btns" style="margin-top:7px">'+
    '<button style="padding:8px" onclick="sendWAByName(\''+n+'\')">📲 WhatsApp Due</button>'+
    '<button style="margin-top:7px;padding:8px;background:#2563eb;color:#fff;border:0;border-radius:8px" onclick="sendLatestSMS(\''+n+'\')">💬 SIM SMS</button>'+
    '<button style="padding:8px;background:#16a34a" onclick="sendPaymentReminder(\''+n+'\')">💰 Payment Reminder</button>'+
@@ -196,7 +196,7 @@ function customers(){
 }
 function customerList(){
  var q=(document.getElementById("q").value||"").toLowerCase(),out="";
- for(var i=0;i<db.customers.length;i++){var c=db.customers[i];if(c.name.toLowerCase().indexOf(q)>=0||String(c.mobile).indexOf(q)>=0){var s=stat(c);out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><span class="small">'+esc(c.mobile)+' · '+esc(c.address)+'</span><br>Due: <b class="red">'+money(s.due)+'</b> · Jar: <b>'+s.jar+'</b> · Can: <b>'+s.can+'</b>+customerRecentInfo(c)<br><div class="btns" style="margin:8px 0 0"><button onclick="editCustomerByName(\''+enc(c.name)+'\')" style="padding:9px">✏️ Edit</button><button onclick="deleteCustomerByName(\''+enc(c.name)+'\')" style="padding:9px;background:#dc2626">🗑️ Delete</button></div></div>'}}
+ for(var i=0;i<db.customers.length;i++){var c=db.customers[i];if(c.name.toLowerCase().indexOf(q)>=0||String(c.mobile).indexOf(q)>=0){var s=stat(c);out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><span class="small"><a href="javascript:void(0)" onclick="openWhatsAppBusiness(\''+esc(c.mobile)+\'')" style="color:#16a34a;font-weight:700;text-decoration:none">📲 '+esc(c.mobile)+'</a> · '+esc(c.address)+'</span><br>Due: <b class="red">'+money(s.due)+'</b> · Jar: <b>'+s.jar+'</b> · Can: <b>'+s.can+'</b>+customerRecentInfo(c)<br><div class="btns" style="margin:8px 0 0"><button onclick="editCustomerByName(\''+enc(c.name)+'\')" style="padding:9px">✏️ Edit</button><button onclick="deleteCustomerByName(\''+enc(c.name)+'\')" style="padding:9px;background:#dc2626">🗑️ Delete</button></div></div>'}}
  document.getElementById("cl").innerHTML=out||'<p class="small">Customer nahi mila.</p>';
 }
 function addCustomer(){
@@ -471,6 +471,13 @@ function sendLatestSMS(encodedName){
   sendSMS(es[es.length-1],c);
  }catch(err){alert("SMS open nahi ho saka: "+err.message);}
 }
+function openWhatsAppBusiness(phone,text){
+ var p=normalizeIndiaNumber(String(phone||''));
+ if(p.length<12){alert('Customer mobile number sahi 10 digit Indian number hona chahiye.');return;}
+ var t=encodeURIComponent(text||'');
+ var url='intent://send?phone='+p+(t?'&text='+t:'')+'#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end';
+ try{location.href=url;}catch(err){alert('WhatsApp Business open nahi ho saka.');}
+}
 function sendWA(e,c){
  var phone=normalizeIndiaNumber(c.mobile);
  if(phone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
@@ -523,25 +530,61 @@ function historyList(){
 }
 
 function pdfEsc(s){return String(s??'').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');}
-function pdfWrap(text,max){var words=String(text||'').split(/\s+/),lines=[],line='';for(var i=0;i<words.length;i++){var w=words[i];if((line+' '+w).trim().length>max&&line){lines.push(line);line=w;}else line=(line+' '+w).trim();}if(line)lines.push(line);return lines;}
-function buildSimplePDF(lines){
- var pageW=595,pageH=842,left=40,top=800,lh=15,maxChars=82;
- var pages=[[]], y=top;
- function addLine(t){if(y<45){pages.push([]);y=top;}pages[pages.length-1].push({text:String(t),y:y});y-=lh;}
- for(var i=0;i<lines.length;i++){
-   var wrapped=pdfWrap(lines[i],maxChars); if(!wrapped.length) wrapped=[''];
-   for(var j=0;j<wrapped.length;j++) addLine(wrapped[j]);
- }
+function pdfText(text,x,y,size,font){return 'BT\n/'+(font||'F1')+' '+(size||9)+' Tf\n1 0 0 1 '+x+' '+y+' Tm ('+pdfEsc(text)+') Tj\nET\n';}
+function statementDay(dateStr){
+ try{return new Date(dateStr+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short'});}catch(e){return '-';}
+}
+function buildStatementPDF(c,from,to,es,totalWater,totalAmount,totalPaid,closing){
+ var pageW=595,pageH=842,left=28,right=28,top=800,bottom=45;
  var objs=[];function obj(x){objs.push(x);return objs.length;}
  var fontId=obj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+ var boldId=obj('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+ var pages=[];
+ var col=[left,84,128,198,265,350,430,500];
+ var headers=['Date','Day','Time','Water','Amount','Payment','Balance'];
+ var rowH=20;
+ function makePage(){var p={content:'',y:top};p.content+='0.85 w\n';pages.push(p);return p;}
+ var pg=makePage();
+ function line(x1,y1,x2,y2){pg.content+=x1+' '+y1+' m '+x2+' '+y2+' l S\n';}
+ function text(t,x,y,size,font){pg.content+=pdfText(t,x,y,size,font);}
+ text('AQUA SUPER - CUSTOMER STATEMENT',left,top,15,'F2');
+ text('Customer: '+c.name+' Ji',left,top-24,10,'F2');
+ text('Mobile: '+(c.mobile||'-'),left,top-40,9,'F1');
+ text('Address: '+(c.address||'-'),left,top-55,9,'F1');
+ text('Period: '+fmt(from)+' to '+fmt(to),left,top-70,9,'F1');
+ pg.y=top-92;
+ function tableHeader(){
+   var y=pg.y; pg.content+='0.90 w\n';
+   line(left,y+5,567,y+5); line(left,y-rowH+5,567,y-rowH+5);
+   for(var i=0;i<headers.length;i++) text(headers[i],col[i]+4,y-10,8,'F2');
+   pg.y-=rowH;
+ }
+ tableHeader();
+ for(var i=0;i<es.length;i++){
+   if(pg.y<bottom+130){pg=makePage(); text('AQUA SUPER - CUSTOMER STATEMENT (continued)',left,top,12,'F2'); pg.y=top-25; tableHeader();}
+   var e=es[i],water=(Number(e.jg)||0)+(Number(e.cg)||0),balance=(Number(e.previousDue)||0)+(Number(e.amount)||0)-(Number(e.paid)||0),tm=e.createdAt?new Date(e.createdAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'-';
+   var vals=[fmt(e.date),statementDay(e.date),tm,String(water),'Rs.'+(Number(e.amount)||0),'Rs.'+(Number(e.paid)||0),'Rs.'+balance];
+   var y=pg.y;
+   for(var j=0;j<vals.length;j++) text(vals[j],col[j]+4,y-13,7.6,'F1');
+   line(left,y-rowH+5,567,y-rowH+5);
+   pg.y-=rowH;
+ }
+ if(!es.length) text('No entries found for this date range.',left+4,pg.y-13,9,'F1');
+ if(pg.y<bottom+115){pg=makePage();text('AQUA SUPER - CUSTOMER STATEMENT (continued)',left,top,12,'F2');pg.y=top-30;}
+ var sy=pg.y-10;
+ text('SUMMARY',left,sy,11,'F2');
+ text('Total Water / Jar / Can: '+totalWater,left,sy-18,9,'F1');
+ text('Total Amount: Rs.'+totalAmount,left,sy-34,9,'F1');
+ text('Total Payment: Rs.'+totalPaid,left,sy-50,9,'F1');
+ text('Closing Due (selected range): Rs.'+closing,left,sy-66,9,'F1');
+ text('Current Due: Rs.'+stat(c).due,left,sy-82,9,'F2');
+ text('Generated by Aqua Super',left,sy-105,8,'F1');
  var pageIds=[];
  for(var pi=0;pi<pages.length;pi++){
-   var content='BT\n/F1 10 Tf\n';
-   for(var li=0;li<pages[pi].length;li++) content+='1 0 0 1 '+left+' '+pages[pi][li].y+' Tm ('+pdfEsc(pages[pi][li].text)+') Tj\n';
-   content+='ET';
-   var contentId=obj('<< /Length '+content.length+' >>\nstream\n'+content+'\nendstream');
+   var content=pages[pi].content;
+   var contentId=obj('<< /Length '+content.length+' >>\nstream\n'+content+'endstream');
    var pageId=obj(''); pageIds.push(pageId);
-   objs[pageId-1]='<< /Type /Page /Parent PAGES /MediaBox [0 0 '+pageW+' '+pageH+'] /Resources << /Font << /F1 '+fontId+' 0 R >> >> /Contents '+contentId+' 0 R >>';
+   objs[pageId-1]='<< /Type /Page /Parent PAGES /MediaBox [0 0 '+pageW+' '+pageH+'] /Resources << /Font << /F1 '+fontId+' 0 R /F2 '+boldId+' 0 R >> >> /Contents '+contentId+' 0 R >>';
  }
  var kids=pageIds.map(function(id){return id+' 0 R';}).join(' ');
  var pagesId=obj('<< /Type /Pages /Kids ['+kids+'] /Count '+pageIds.length+' >>');
@@ -570,16 +613,9 @@ function generateCustomerStatementPDF(encodedName,doShare){
   var to=toEl&&toEl.value?toEl.value:dateNow();
   if(from>to){alert('From Date, To Date se badi nahi ho sakti.');return;}
   var es=statementEntries(c,from,to),totalWater=0,totalAmount=0,totalPaid=0;
-  var lines=['AQUA SUPER - CUSTOMER STATEMENT','Customer: '+c.name+' Ji','Mobile: '+(c.mobile||'-'),'Address: '+(c.address||'-'),'Period: '+fmt(from)+' to '+fmt(to),'','Date | Time | Water | Amount | Payment | Balance'];
-  if(!es.length) lines.push('No entries found for this date range.');
-  for(var i=0;i<es.length;i++){
-    var e=es[i],water=(Number(e.jg)||0)+(Number(e.cg)||0),balance=(Number(e.previousDue)||0)+(Number(e.amount)||0)-(Number(e.paid)||0),tm=e.createdAt?new Date(e.createdAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'-';
-    totalWater+=water; totalAmount+=Number(e.amount)||0; totalPaid+=Number(e.paid)||0;
-    lines.push(fmt(e.date)+' | '+tm+' | '+water+' | Rs.'+(Number(e.amount)||0)+' | Rs.'+(Number(e.paid)||0)+' | Rs.'+balance);
-  }
+  for(var i=0;i<es.length;i++){var e=es[i];totalWater+=(Number(e.jg)||0)+(Number(e.cg)||0);totalAmount+=Number(e.amount)||0;totalPaid+=Number(e.paid)||0;}
   var closing=es.length?((Number(es[es.length-1].previousDue)||0)+(Number(es[es.length-1].amount)||0)-(Number(es[es.length-1].paid)||0)):stat(c).due;
-  lines.push('','SUMMARY','Total Water/Jar/Can: '+totalWater,'Total Amount: Rs.'+totalAmount,'Total Payment: Rs.'+totalPaid,'Closing Due for selected range: Rs.'+closing,'Current Due: Rs.'+stat(c).due,'','Generated by Aqua Super');
-  var blob=buildSimplePDF(lines),safe=String(c.name).replace(/[^a-z0-9]+/gi,'_')||'Customer';
+  var blob=buildStatementPDF(c,from,to,es,totalWater,totalAmount,totalPaid,closing),safe=String(c.name).replace(/[^a-z0-9]+/gi,'_')||'Customer';
   var file=new File([blob], 'Aqua_Super_'+safe+'_Statement_'+from+'_to_'+to+'.pdf',{type:'application/pdf'});
   if(doShare && navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
     navigator.share({title:'Aqua Super Customer Statement',text:c.name+' Ji - '+fmt(from)+' to '+fmt(to),files:[file]}).catch(function(){});
@@ -595,7 +631,7 @@ function openCustomerLifetime(n){
  var es=db.entries.filter(function(e){return e.name===c.name}).sort(function(a,b){return b.date.localeCompare(a.date)});
  var out='<div class="form"><button onclick="history()" style="width:auto;padding:8px 12px">← Back to History</button>'+
  '<h2>📅 '+esc(c.name)+' Ji – Full Lifetime History</h2>'+
- '<div class="item"><b>Mobile:</b> '+esc(c.mobile)+'<br><b>Address:</b> '+esc(c.address)+'<br><b>Current Due:</b> <span class="red">'+money(stat(c).due)+'</span><br><b>Jar Balance:</b> '+stat(c).jar+' · <b>Can Balance:</b> '+stat(c).can+'</div>' + '<div class="item"><h3>📄 Customer Statement PDF</h3><div class="grid"><div><label>From Date</label><input id="stmtFrom" type="date"></div><div><label>To Date</label><input id="stmtTo" type="date" value="'+dateNow()+'"></div></div><div class="btns" style="margin-top:10px"><button onclick="generateCustomerStatementPDF(window._statementCustomer,false)">📄 Generate PDF</button><button onclick="generateCustomerStatementPDF(window._statementCustomer,true)" style="background:#16a34a">📲 Share PDF / WhatsApp</button></div><div class="small" style="margin-top:7px">Date range select karke customer ka date-wise pani, amount, payment aur balance PDF mein milega.</div></div>'; if(!es.length){out+='<div class="item">Is customer ki koi daily entry nahi hai.</div>'}
+ '<div class="item"><b>Mobile:</b> <a href="javascript:void(0)" onclick="openWhatsAppBusiness(\''+esc(c.mobile)+\'')" style="color:#16a34a;font-weight:700;text-decoration:none">📲 '+esc(c.mobile)+'</a><br><b>Address:</b> '+esc(c.address)+'<br><b>Current Due:</b> <span class="red">'+money(stat(c).due)+'</span><br><b>Jar Balance:</b> '+stat(c).jar+' · <b>Can Balance:</b> '+stat(c).can+'</div>' + '<div class="item"><h3>📄 Customer Statement PDF</h3><div class="grid"><div><label>From Date</label><input id="stmtFrom" type="date"></div><div><label>To Date</label><input id="stmtTo" type="date" value="'+dateNow()+'"></div></div><div class="btns" style="margin-top:10px"><button onclick="generateCustomerStatementPDF(window._statementCustomer,false)">📄 Generate PDF</button><button onclick="generateCustomerStatementPDF(window._statementCustomer,true)" style="background:#16a34a">📲 Share PDF / WhatsApp</button></div><div class="small" style="margin-top:7px">Date range select karke customer ka date-wise pani, amount, payment aur balance PDF mein milega.</div></div>'; if(!es.length){out+='<div class="item">Is customer ki koi daily entry nahi hai.</div>'}
  else{
   for(var k=0;k<es.length;k++){
    var e=es[k],dt=new Date(e.date+'T00:00:00'),day=isNaN(dt)?'':dt.toLocaleDateString('en-IN',{weekday:'long'});

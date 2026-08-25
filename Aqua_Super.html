@@ -161,7 +161,7 @@ function dueList(){
  var out="";
  for(var i=0;i<arr.length;i++){
   var c=arr[i].c,st=arr[i].st,n=enc(c.name);
-  out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><span class="small">'+esc(c.mobile)+'</span> · <span class="red">'+money(st.due)+'</span><br><div class="btns" style="margin-top:7px">'+
+  out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><a href="javascript:void(0)" onclick="openWhatsAppBusiness(\''+esc(c.mobile)+\'')" style="color:#16a34a;font-weight:700;text-decoration:none">📲 '+esc(c.mobile)+'</a> · <span class="red">'+money(st.due)+'</span><br><div class="btns" style="margin-top:7px">'+
    '<button style="padding:8px" onclick="sendWAByName(\''+n+'\')">📲 WhatsApp Due</button>'+
    '<button style="margin-top:7px;padding:8px;background:#2563eb;color:#fff;border:0;border-radius:8px" onclick="sendLatestSMS(\''+n+'\')">💬 SIM SMS</button>'+
    '<button style="padding:8px;background:#16a34a" onclick="sendPaymentReminder(\''+n+'\')">💰 Payment Reminder</button>'+
@@ -192,7 +192,7 @@ function customers(){
 }
 function customerList(){
  var q=(document.getElementById("q").value||"").toLowerCase(),out="";
- for(var i=0;i<db.customers.length;i++){var c=db.customers[i];if(c.name.toLowerCase().indexOf(q)>=0||String(c.mobile).indexOf(q)>=0){var s=stat(c);out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><span class="small">'+esc(c.mobile)+' · '+esc(c.address)+'</span><br>Due: <b class="red">'+money(s.due)+'</b> · Jar: <b>'+s.jar+'</b> · Can: <b>'+s.can+'</b>+customerRecentInfo(c)<br><div class="btns" style="margin:8px 0 0"><button onclick="editCustomerByName(\''+enc(c.name)+'\')" style="padding:9px">✏️ Edit</button><button onclick="deleteCustomerByName(\''+enc(c.name)+'\')" style="padding:9px;background:#dc2626">🗑️ Delete</button></div></div>'}}
+ for(var i=0;i<db.customers.length;i++){var c=db.customers[i];if(c.name.toLowerCase().indexOf(q)>=0||String(c.mobile).indexOf(q)>=0){var s=stat(c);out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><span class="small"><a href="javascript:void(0)" onclick="openWhatsAppBusiness(\''+esc(c.mobile)+\'')" style="color:#16a34a;font-weight:700;text-decoration:none">📲 '+esc(c.mobile)+'</a> · '+esc(c.address)+'</span><br>Due: <b class="red">'+money(s.due)+'</b> · Jar: <b>'+s.jar+'</b> · Can: <b>'+s.can+'</b>+customerRecentInfo(c)<br><div class="btns" style="margin:8px 0 0"><button onclick="editCustomerByName(\''+enc(c.name)+'\')" style="padding:9px">✏️ Edit</button><button onclick="deleteCustomerByName(\''+enc(c.name)+'\')" style="padding:9px;background:#dc2626">🗑️ Delete</button></div></div>'}}
  document.getElementById("cl").innerHTML=out||'<p class="small">Customer nahi mila.</p>';
 }
 function addCustomer(){
@@ -457,6 +457,13 @@ function sendLatestSMS(encodedName){
   sendSMS(es[es.length-1],c);
  }catch(err){alert("SMS open nahi ho saka: "+err.message);}
 }
+function openWhatsAppBusiness(phone,text){
+ var p=normalizeIndiaNumber(String(phone||''));
+ if(p.length<12){alert('Customer mobile number sahi 10 digit Indian number hona chahiye.');return;}
+ var t=encodeURIComponent(text||'');
+ var url='intent://send?phone='+p+(t?'&text='+t:'')+'#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end';
+ try{location.href=url;}catch(err){alert('WhatsApp Business open nahi ho saka.');}
+}
 function sendWA(e,c){
  var phone=normalizeIndiaNumber(c.mobile);
  if(phone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
@@ -501,7 +508,7 @@ function openCustomerLifetime(n){
  var es=db.entries.filter(function(e){return e.name===c.name}).sort(function(a,b){return b.date.localeCompare(a.date)});
  var out='<div class="form"><button onclick="history()" style="width:auto;padding:8px 12px">← Back to History</button>'+
  '<h2>📅 '+esc(c.name)+' Ji – Full Lifetime History</h2>'+
- '<div class="item"><b>Mobile:</b> '+esc(c.mobile)+'<br><b>Address:</b> '+esc(c.address)+'<br><b>Current Due:</b> <span class="red">'+money(stat(c).due)+'</span><br><b>Jar Balance:</b> '+stat(c).jar+' · <b>Can Balance:</b> '+stat(c).can+'</div>';
+ '<div class="item"><b>Mobile:</b> <a href="javascript:void(0)" onclick="openWhatsAppBusiness(\''+esc(c.mobile)+\'')" style="color:#16a34a;font-weight:700;text-decoration:none">📲 '+esc(c.mobile)+'</a><br><b>Address:</b> '+esc(c.address)+'<br><b>Current Due:</b> <span class="red">'+money(stat(c).due)+'</span><br><b>Jar Balance:</b> '+stat(c).jar+' · <b>Can Balance:</b> '+stat(c).can+'</div>';
  if(!es.length){out+='<div class="item">Is customer ki koi daily entry nahi hai.</div>'}
  else{
   for(var k=0;k<es.length;k++){
