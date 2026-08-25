@@ -5,10 +5,8 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1,maximum-scale=1" name="viewport"/>
 <meta content="#075985" name="theme-color"/>
-<link rel="manifest" href="./manifest.webmanifest">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest"/>
+<link rel="icon" href="icon-192.png"/>
 <title>Aqua Super - HTML View Final</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f2f7fb;color:#17324d}
@@ -64,10 +62,11 @@ function aquaPaymentReminder(customer){
 <body>
 <div class="top"><h1>💧 Aqua Super</h1><p id="today"></p></div>
 <main id="main"></main>
-<nav>
+<nav style="grid-template-columns:repeat(5,1fr)">
 <button id="nHome" onclick="go('home')">🏠<br/>Home</button>
 <button id="nCust" onclick="go('customers')">👥<br/>Customers</button>
 <button id="nEntry" onclick="go('entry')">🚚<br/>Daily Entry</button>
+<button id="nLog" onclick="go('dailylog')">📋<br/>Daily Log</button>
 <button id="nHist" onclick="go('history')">🔎<br/>History</button>
 </nav>
 <div id="aquaGoogleDriveCard" style="margin:16px 12px 20px;padding:16px;border-radius:16px;background:#f0fdf4;border:1px solid #bbf7d0;">
@@ -110,8 +109,8 @@ function stat(c){
  for(var i=0;i<db.entries.length;i++){var e=db.entries[i];if(e.name===c.name){due+=e.amount-e.paid;jar+=e.jg-e.je;can+=e.cg-e.ce}}
  return {due:due,jar:jar,can:can}
 }
-function setNav(p){["nHome","nCust","nEntry","nHist"].forEach(function(id){document.getElementById(id).className=""});document.getElementById({home:"nHome",customers:"nCust",entry:"nEntry",history:"nHist"}[p]).className="active"}
-function go(p){setNav(p);if(p==="home")home();if(p==="customers")customers();if(p==="entry")entry();if(p==="history")history()}
+function setNav(p){["nHome","nCust","nEntry","nLog","nHist"].forEach(function(id){var el=document.getElementById(id);if(el)el.className=""});var el=document.getElementById({home:"nHome",customers:"nCust",entry:"nEntry",dailylog:"nLog",history:"nHist"}[p]);if(el)el.className="active"}
+function go(p){setNav(p);if(p==="home")home();if(p==="customers")customers();if(p==="entry")entry();if(p==="dailylog")dailyLog();if(p==="history")history()}
 document.getElementById("today").textContent=selectedDateLabel(dashboardDate);
 
 function home(){
@@ -148,6 +147,7 @@ function home(){
  '<div class="box"><div class="lbl">Can Given</div><div class="num">'+cg+'</div></div>'+
  '</div>'+
  '<div class="btns"><button onclick="go(\'customers\')">👤 Add / Search Customer</button><button onclick="go(\'entry\')">➕ New Daily Entry</button></div>'+
+ '<div class="form"><button onclick="go(\'dailylog\')">📋 Today\'s Daily Log — '+db.entries.filter(function(e){return e.date===dateNow()}).length+' Entries</button></div>'+
  '<div class="form"><h2>🔴 Customers With Due</h2><div style="margin:10px 0 12px"><input id="dueCustomerSearch" type="search" placeholder="🔎 Customer name ya mobile number search karein..." oninput="filterDueCustomers(this.value)" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;background:#fff"></div><div id="dueList">'+dueList()+'</div></div>'+
  '<div class="form"><button onclick="backup()">💾 Backup Data</button><br><br><button onclick="document.getElementById(\'restore\').click()">♻️ Restore Backup</button><input id="restore" type="file" accept=".json" style="display:none" onchange="restore(this)"></div>';
 }
@@ -236,9 +236,19 @@ function editCustomerByName(encodedName){
  c.address=String(newAddress).trim();
  c.jarRate=Number(newJarRate)||0;
  c.canRate=Number(newCanRate)||0;
- c.openDue=Number(newDue)||0;
- c.openJar=Number(newJarBal)||0;
- c.openCan=Number(newCanBal)||0;
+ // Store adjusted base balances so stat() returns the edited CURRENT values.
+ var entryDue=0,entryJar=0,entryCan=0;
+ for(var ei=0;ei<db.entries.length;ei++){
+   var ee=db.entries[ei];
+   if(ee.name===oldName){
+     entryDue+=(Number(ee.amount)||0)-(Number(ee.paid)||0);
+     entryJar+=(Number(ee.jg)||0)-(Number(ee.je)||0);
+     entryCan+=(Number(ee.cg)||0)-(Number(ee.ce)||0);
+   }
+ }
+ c.openDue=(Number(newDue)||0)-entryDue;
+ c.openJar=(Number(newJarBal)||0)-entryJar;
+ c.openCan=(Number(newCanBal)||0)-entryCan;
  c.updatedAt=new Date().toISOString();
  if(oldName!==newName){
    for(var i=0;i<db.entries.length;i++){
@@ -376,13 +386,13 @@ function preview(){
 }
 function saveEntry(wa){
  var c=cget(document.getElementById("en").value),jg=+document.getElementById("jg").value||0,je=+document.getElementById("je").value||0,cg=+document.getElementById("cg").value||0,ce=+document.getElementById("ce").value||0,p=+document.getElementById("pay").value||0,s=stat(c),jarRate=+document.getElementById("ejr").value||0,canRate=+document.getElementById("ecr").value||0,amount=jg*jarRate+cg*canRate;
- var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due};
+ var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due,createdAt:new Date().toISOString()};
  db.entries.push(e);c.updatedAt=new Date().toISOString();save();
  if(wa){sendWA(e,c)}else{alert("Entry save ho gayi.");go("home")}
 }
 function saveEntrySMS(){
  var c=cget(document.getElementById("en").value),jg=+document.getElementById("jg").value||0,je=+document.getElementById("je").value||0,cg=+document.getElementById("cg").value||0,ce=+document.getElementById("ce").value||0,p=+document.getElementById("pay").value||0,s=stat(c),jarRate=+document.getElementById("ejr").value||0,canRate=+document.getElementById("ecr").value||0,amount=jg*jarRate+cg*canRate;
- var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due};
+ var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due,createdAt:new Date().toISOString()};
  db.entries.push(e);c.updatedAt=new Date().toISOString();save();sendSMS(e,c);
 }
 function message(e,c){
@@ -481,6 +491,18 @@ function confirmWASend(){
  },1000);
 }
 function sendWAByName(n){var c=cget(dec(n)),es=db.entries.filter(function(e){return e.name===c.name});var e=es.length?es[es.length-1]:{jg:0,cg:0,je:0,ce:0,amount:0,paid:0,previousDue:stat(c).due};sendWA(e,c)}
+function dailyLog(){
+ var d=window._dailyLogDate||dateNow(),list=[];
+ for(var i=0;i<db.entries.length;i++){var e=db.entries[i];if(e.date===d)list.push({e:e,idx:i});}
+ list.sort(function(a,b){var at=a.e.createdAt?new Date(a.e.createdAt).getTime():NaN,bt=b.e.createdAt?new Date(b.e.createdAt).getTime():NaN;if(isFinite(at)&&isFinite(bt))return at-bt;if(isFinite(at))return -1;if(isFinite(bt))return 1;return a.idx-b.idx;});
+ var total=list.length,totalWater=0,totalAmount=0,totalPaid=0;
+ for(var j=0;j<list.length;j++){totalWater+=(Number(list[j].e.jg)||0)+(Number(list[j].e.cg)||0);totalAmount+=Number(list[j].e.amount)||0;totalPaid+=Number(list[j].e.paid)||0;}
+ var out='<div class="form"><h2>📋 Daily Log</h2><label>📅 Select Date</label><input id="dailyLogDate" type="date" value="'+d+'" max="'+dateNow()+'" onchange="window._dailyLogDate=this.value;dailyLog()"><div class="grid" style="margin-top:12px"><div class="box"><div class="lbl">Total Entries</div><div class="num">'+total+'</div></div><div class="box"><div class="lbl">Water Items</div><div class="num">'+totalWater+'</div></div><div class="box"><div class="lbl">Total Amount</div><div class="num">'+money(totalAmount)+'</div></div><div class="box"><div class="lbl">Payment</div><div class="num">'+money(totalPaid)+'</div></div></div></div>';
+ if(!list.length) out+='<div class="form"><div class="item"><b>Is date par koi entry nahi hai.</b><br><span class="small">Jab aap Daily Entry save karenge, yahan serial-wise record aa jayega.</span></div></div>';
+ else{out+='<div class="form"><h2>📝 '+selectedDateLabel(d)+' — '+total+' Entries</h2>';for(var k=0;k<list.length;k++){var e=list[k].e,c=cget(e.name),t=e.createdAt?new Date(e.createdAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"Time not recorded",detail=[];if(Number(e.jg||0)>0)detail.push("Jar Given: "+(e.jg||0));if(Number(e.je||0)>0)detail.push("Empty Jar: "+(e.je||0));if(Number(e.cg||0)>0)detail.push("Can Given: "+(e.cg||0));if(Number(e.ce||0)>0)detail.push("Empty Can: "+(e.ce||0));if(!detail.length&&Number(e.paid||0)>0)detail.push("Payment Received: "+money(e.paid));out+='<div class="item"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><b>#'+(k+1)+' · '+esc(e.name)+' Ji</b><span class="small" style="white-space:nowrap">🕒 '+esc(t)+'</span></div><div class="small" style="margin-top:5px">'+esc(detail.join(" · ")||"Entry")+'</div><div style="margin-top:5px">Amount: <b>'+money(e.amount||0)+'</b> · Payment: <b>'+money(e.paid||0)+'</b>'+(c?'<br><span class="small">📍 '+esc(c.address||"")+'</span>':'')+'</div></div>';}out+='</div>';}
+ document.getElementById("main").innerHTML=out;
+}
+
 function history(){
  document.getElementById("main").innerHTML='<div class="form"><h2>🔎 Customer Lifetime History</h2><label>Search Name / Mobile</label><input id="hq" oninput="historyList()" placeholder="Customer search"><div id="hl"></div></div>';historyList();
 }
@@ -857,5 +879,6 @@ function aquaImportOldBackup(){
 })();
 </script>
 
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("./sw.js").catch(function(){});});}</script>
 </body>
 </html>

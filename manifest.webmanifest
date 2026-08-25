@@ -1,12 +1,12 @@
 {
   "name": "Aqua Super",
   "short_name": "Aqua Super",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f2f7fb",
   "theme_color": "#075985",
-  "description": "Aqua Super customer and daily water delivery management app.",
+  "description": "Aqua Super water delivery management",
   "icons": [
     {
       "src": "icon-192.png",
@@ -20,6 +20,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "prefer_related_applications": false
+  ]
 }
