@@ -72,8 +72,8 @@ function aquaPaymentReminder(customer){
 <div style="font-size:18px;font-weight:800;color:#166534;">☁️ Google Drive Backup</div>
 <div style="font-size:13px;color:#475569;margin:7px 0 12px;">पहली बार Google Login करें। उसके बाद रोज़ यहीं से backup सीधे Google Drive में जाएगा।</div>
 <button onclick="aquaDriveBackup()" style="width:100%;padding:13px;border:0;border-radius:12px;background:#16a34a;color:white;font-size:16px;font-weight:800;">☁️ Google Login / Backup</button>
-<button onclick="aquaDriveRestore()" style="width:100%;padding:13px;margin-top:10px;border:0;border-radius:12px;background:#0ea5e9;color:white;font-size:16px;font-weight:800;">♻️ Restore from Google Drive</button>
-<div id="aquaDriveRestoreList" style="margin-top:10px"></div>
+<button onclick="aquaShowGoogleDriveRestore()" style="width:100%;padding:13px;border:0;border-radius:12px;background:#2563eb;color:white;font-size:16px;font-weight:800;margin-top:10px;">♻️ Restore from Google Drive</button>
+<div id="aquaGoogleDriveRestoreList" style="margin-top:10px;"></div>
 </div><div id="aquaDataStatus" style="margin:0 12px 14px;padding:10px 12px;border-radius:12px;background:#eff6ff;color:#075985;font-size:12px;text-align:center">✅ Latest Aqua Super data package loaded · 25-Aug latest data</div><script>
 var KEY="AQUA_SUPER_DATA_FINAL_2026_08_25";
 var db={customers:[],entries:[]};
@@ -748,7 +748,7 @@ document.addEventListener("DOMContentLoaded",function(){
 
 
 /* Aqua Super - Google Drive Backup from local HTML */
-const AQUA_BACKUP_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxgcIYXRDoUP7nYXrC8TzbF-hI-CTKhVncnWX7yViF97uAXBjto5nsGXvXXGjNrjdcwIQ/exec";
+const AQUA_BACKUP_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyY8uZ9Grv6CzqjDth4j1jUd3r3JOFfm5lV60QuH8JPNRjqZhhOEgBSA9yMB3wosCz6/exec";
 
 function aquaDriveBackup(){
   if(!AQUA_BACKUP_WEB_APP_URL || AQUA_BACKUP_WEB_APP_URL.indexOf("/exec")===-1){
@@ -790,61 +790,119 @@ function aquaDriveBackup(){
 
 
 
+/* Aqua Super - Google Drive Restore */
+function aquaJsonp(url, callbackName, timeoutMs){
+  return new Promise(function(resolve,reject){
+    var script=document.createElement("script");
+    var timer=setTimeout(function(){
+      cleanup();
+      reject(new Error("Google Drive response timeout"));
+    }, timeoutMs || 15000);
 
-async function aquaDriveRestore(){
-  var box=document.getElementById("aquaDriveRestoreList");
-  if(!box){return;}
-  if(!AQUA_BACKUP_WEB_APP_URL || AQUA_BACKUP_WEB_APP_URL.indexOf("/exec")===-1){
-    alert("Google Drive Web App URL set nahi hai.");
-    return;
-  }
-  box.innerHTML='<div class="small">⏳ Google Drive backups load ho rahe hain...</div>';
-  try{
-    var res=await fetch(AQUA_BACKUP_WEB_APP_URL+"?action=list");
-    var out=await res.json();
-    if(!out.success) throw new Error(out.error||"Backup list nahi mili.");
-    if(!out.files || !out.files.length){
-      box.innerHTML='<div class="small">Google Drive mein koi Aqua Super backup nahi mila.</div>';
-      return;
+    function cleanup(){
+      clearTimeout(timer);
+      if(script.parentNode) script.parentNode.removeChild(script);
+      try{ delete window[callbackName]; }catch(e){ window[callbackName]=undefined; }
     }
-    box.innerHTML='<div style="font-weight:800;color:#075985;margin-bottom:8px">📁 Google Drive Backups</div>';
-    out.files.forEach(function(f){
-      var row=document.createElement("div");
-      row.style.cssText="display:flex;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #e5edf3";
-      var label=document.createElement("div");
-      label.style.cssText="flex:1;font-size:13px;color:#334155";
-      label.textContent=f.name;
-      var btn=document.createElement("button");
-      btn.type="button";
-      btn.style.cssText="width:auto;padding:8px 10px;background:#0ea5e9;font-size:12px";
-      btn.textContent="Restore";
-      btn.onclick=function(){ aquaRestoreDriveFile(f.id,f.name); };
-      row.appendChild(label); row.appendChild(btn); box.appendChild(row);
-    });
-  }catch(e){
-    console.error(e);
-    box.innerHTML='<div style="padding:10px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px">Google Drive restore list load nahi ho saki. Apps Script Web App deployment/permission check karein.</div>';
-  }
+
+    window[callbackName]=function(data){
+      cleanup();
+      resolve(data);
+    };
+
+    script.src=url+(url.indexOf("?")>=0?"&":"?")+"callback="+encodeURIComponent(callbackName)+"&_="+Date.now();
+    script.onerror=function(){
+      cleanup();
+      reject(new Error("Google Drive request failed"));
+    };
+    document.head.appendChild(script);
+  });
 }
 
-async function aquaRestoreDriveFile(fileId,fileName){
-  if(!fileId)return;
-  if(!confirm("Backup restore karein?\n\n"+fileName+"\n\nCurrent phone/app data replace ho jayega.")) return;
-  try{
-    var res=await fetch(AQUA_BACKUP_WEB_APP_URL+"?action=get&id="+encodeURIComponent(fileId));
-    var out=await res.json();
-    if(!out.success || !out.data) throw new Error(out.error||"Backup data nahi mila.");
-    var restored=JSON.parse(out.data);
-    if(!restored || typeof restored!=="object") throw new Error("Backup invalid hai.");
-    if(!confirm("Final confirmation:\n\n"+fileName+" restore karna hai?")) return;
-    db=restored;
-    localStorage.setItem(KEY,JSON.stringify(db));
-    alert("✅ Google Drive backup successfully restore ho gaya.");
-    location.reload();
-  }catch(e){
-    console.error(e);
-    alert("❌ Restore failed.\n\n"+(e.message||e));
+function aquaShowGoogleDriveRestore(){
+  var box=document.getElementById("aquaGoogleDriveRestoreList");
+  if(!box)return;
+
+  box.innerHTML='<div style="padding:12px;border-radius:10px;background:#eff6ff;color:#075985;font-size:13px;text-align:center">☁️ Google Drive backups load ho rahe hain...</div>';
+
+  if(!AQUA_BACKUP_WEB_APP_URL || AQUA_BACKUP_WEB_APP_URL.indexOf("/exec")===-1){
+    box.innerHTML='<div style="padding:12px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px">Google Drive Web App URL set nahi hai.</div>';
+    return;
   }
+
+  var cb="aquaDriveList_"+Date.now();
+  var url=AQUA_BACKUP_WEB_APP_URL+"?action=list";
+
+  aquaJsonp(url,cb,20000).then(function(res){
+    if(!res || !res.success){
+      throw new Error(res && res.error ? res.error : "Backup list nahi mili.");
+    }
+
+    var files=res.files||[];
+    if(!files.length){
+      box.innerHTML='<div style="padding:12px;border-radius:10px;background:#f8fafc;color:#64748b;font-size:13px">Google Drive mein abhi koi Aqua Super backup nahi mila.</div>';
+      return;
+    }
+
+    var out='<div style="padding:12px;border:1px solid #bfdbfe;border-radius:12px;background:#f8fbff">'+
+      '<div style="font-weight:800;color:#075985;margin-bottom:8px">☁️ Google Drive Backups</div>'+
+      '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Jis date ka backup wapas lana hai uske saamne Restore dabayein.</div>';
+
+    files.forEach(function(f){
+      var safeId=encodeURIComponent(f.id);
+      out+='<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid #e2e8f0">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:700;font-size:13px;word-break:break-word">'+esc(f.name)+'</div>'+
+          '<div style="font-size:11px;color:#64748b;margin-top:3px">'+esc(f.updatedAt||"")+'</div>'+
+        '</div>'+
+        '<button onclick="aquaRestoreGoogleDriveBackup(\''+safeId+'\')" style="width:auto;padding:8px 11px;background:#2563eb;color:#fff;font-size:12px">♻️ Restore</button>'+
+      '</div>';
+    });
+
+    out+='</div>';
+    box.innerHTML=out;
+  }).catch(function(err){
+    box.innerHTML='<div style="padding:12px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px">Google Drive backups load nahi ho sake.<br>'+esc(err.message||err)+'</div>';
+  });
+}
+
+function aquaRestoreGoogleDriveBackup(encodedFileId){
+  var fileId=decodeURIComponent(encodedFileId||"");
+  if(!fileId)return;
+
+  if(!confirm("Google Drive se ye Aqua Super backup restore karna hai?\\n\\nCurrent app data replace ho jayega. Pehle zaroori ho to normal backup download kar lein.")) return;
+
+  var box=document.getElementById("aquaGoogleDriveRestoreList");
+  if(box) box.innerHTML='<div style="padding:12px;border-radius:10px;background:#eff6ff;color:#075985;font-size:13px;text-align:center">♻️ Google Drive backup restore ho raha hai...</div>';
+
+  var cb="aquaDriveGet_"+Date.now();
+  var url=AQUA_BACKUP_WEB_APP_URL+"?action=get&fileId="+encodeURIComponent(fileId);
+
+  aquaJsonp(url,cb,30000).then(function(res){
+    if(!res || !res.success || !res.data){
+      throw new Error(res && res.error ? res.error : "Backup data nahi mili.");
+    }
+
+    var x;
+    try{
+      x=JSON.parse(res.data);
+    }catch(e){
+      throw new Error("Google Drive backup JSON valid nahi hai.");
+    }
+
+    if(!x || !Array.isArray(x.customers) || !Array.isArray(x.entries)){
+      throw new Error("Ye valid Aqua Super backup nahi hai.");
+    }
+
+    db=x;
+    localStorage.setItem(KEY,JSON.stringify(db));
+
+    alert("✅ Google Drive backup restore ho gaya.\\n\\nCustomers: "+db.customers.length+"\\nEntries: "+db.entries.length);
+    location.reload();
+  }).catch(function(err){
+    if(box) box.innerHTML='<div style="padding:12px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px">Restore nahi ho saka.<br>'+esc(err.message||err)+'</div>';
+    alert("Google Drive restore nahi ho saka.\\n\\n"+(err.message||err));
+  });
 }
 
 function aquaImportOldBackup(){
