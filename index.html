@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#075985">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>Aqua Super</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f2f7fb;color:#17324d}
+.top{background:#075985;color:#fff;padding:18px 15px;border-radius:0 0 22px 22px}
+.top h1{margin:0;font-size:25px}.top p{margin:5px 0 0;font-size:13px}
+main{padding:14px 12px 88px;max-width:760px;margin:auto}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.box,.form{background:#fff;border-radius:15px;padding:14px;box-shadow:0 2px 9px #0001;margin-bottom:12px}
+.lbl{font-size:12px;color:#708090}.num{font-size:22px;font-weight:700;margin-top:5px}
+button{width:100%;padding:13px;border:0;border-radius:11px;background:#0ea5e9;color:#fff;font-weight:700;font-size:15px}
+button.secondary{background:#2563eb}button.green{background:#16a34a}button.redbtn{background:#dc2626}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+input,select,textarea{width:100%;padding:12px;border:1px solid #ccd8e3;border-radius:10px;font-size:15px;background:#fff}
+textarea{min-height:70px;resize:vertical}
+label{display:block;font-size:12px;color:#64748b;margin:10px 0 5px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+h2{font-size:18px;margin:5px 0 12px}
+.item{padding:12px 0;border-bottom:1px solid #e5edf3}.item:last-child{border:0}
+.red{color:#d62828}.green{color:#15803d}.small{font-size:12px;color:#64748b}
+.msg{padding:10px;border-radius:10px;background:#e9f7ef;color:#166534;margin-top:10px}
+.warn{padding:10px;border-radius:10px;background:#fff7ed;color:#9a3412;margin-top:10px}
+hr{border:0;border-top:1px solid #e5edf3;margin:16px 0}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #d8e2ea;display:grid;grid-template-columns:repeat(4,1fr);z-index:10}
+nav button{border-radius:0;background:#fff;color:#64748b;font-size:12px;padding:9px 3px}
+nav button.active{color:#075985;font-weight:bold}
+.cardbtn{padding:9px;font-size:13px}
+.searchResult{border:1px solid #dbe7ef;border-radius:10px;margin-top:7px;background:#fff}
+.searchResult button{background:#fff;color:#17324d;text-align:left;border-radius:0;border-bottom:1px solid #e5edf3}
+.searchResult button:last-child{border-bottom:0}
+.tableWrap{overflow-x:auto;margin-top:10px}
+.aquaLogTable{border-collapse:collapse;width:100%;min-width:1180px;background:#fff}
+.aquaLogTable th,.aquaLogTable td{border:1px solid #d7e1e8;padding:7px 8px;font-size:12px;vertical-align:top;text-align:left}
+.aquaLogTable th{background:#e8f1f6;color:#17324d;position:sticky;top:0;z-index:1}
+.logMeta{font-size:12px;color:#64748b;margin-top:4px}
+.badge{display:inline-block;padding:3px 7px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:11px;font-weight:700}
+@media(max-width:480px){.grid{gap:8px}.box{padding:12px}.num{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>💧 Aqua Super</h1>
+  <p id="today"></p>
+</div>
+
+<main id="main"></main>
+
+<nav>
+  <button id="nHome" onclick="go('home')">🏠<br>Home</button>
+  <button id="nCust" onclick="go('customers')">👥<br>Customers</button>
+  <button id="nEntry" onclick="go('entry')">🚚<br>Daily Entry</button>
+  <button id="nHist" onclick="go('history')">🔎<br>Daily Log</button>
+</nav>
+
+<script>
+"use strict";
+
+const KEY="AQUA_SUPER_DATA_2";
+let db={customers:[],entries:[]};
+try{db=JSON.parse(localStorage.getItem(KEY))||db}catch(e){db={customers:[],entries:[]}}
+if(!Array.isArray(db.customers))db.customers=[];
+if(!Array.isArray(db.entries))db.entries=[];
+
+let dashboardDate=dateNow();
+
+function save(){localStorage.setItem(KEY,JSON.stringify(db))}
+function dateNow(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function money(n){return "₹"+(Number(n)||0).toLocaleString("en-IN",{maximumFractionDigits:2})}
+function fmt(d){
+  if(!d)return "";
+  return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
+}
+function selectedDateLabel(d){
+  return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long",day:"2-digit",month:"long",year:"numeric"});
+}
+function dayName(d){
+  return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long"});
+}
+function esc(s){
+  return String(s??"").replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+function enc(s){return encodeURIComponent(String(s??""))}
+function dec(s){try{return decodeURIComponent(s)}catch(e){return s}}
+function cget(name){
+  return db.customers.find(c=>c.name===name)||null;
+}
+function stat(c){
+  let due=Number(c.openDue)||0,jar=Number(c.openJar)||0,can=Number(c.openCan)||0;
+  db.entries.forEach(e=>{
+    if(e.name===c.name){
+      due+=(Number(e.amount)||0)-(Number(e.paid)||0);
+      jar+=(Number(e.jg)||0)-(Number(e.je)||0);
+      can+=(Number(e.cg)||0)-(Number(e.ce)||0);
+    }
+  });
+  return {due,jar,can};
+}
+function setNav(p){
+  ["nHome","nCust","nEntry","nHist"].forEach(id=>document.getElementById(id).className="");
+  document.getElementById({home:"nHome",customers:"nCust",entry:"nEntry",history:"nHist"}[p]).className="active";
+}
+function go(p){
+  setNav(p);
+  if(p==="home")home();
+  if(p==="customers")customers();
+  if(p==="entry")entry();
+  if(p==="history")history();
+}
+function setDate(d){
+  if(!d)d=dateNow();
+  if(d>dateNow())d=dateNow();
+  dashboardDate=d;
+  home();
+}
+function currentTime(){
+  return new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
+}
+function lastDelivery(c){
+  const a=db.entries.filter(e=>e.name===c.name&&e.date).sort((x,y)=>String(y.date).localeCompare(String(x.date)));
+  return a.length?a[0]:null;
+}
+function recentUpdatedText(c){
+  if(!c.updatedAt)return "Not updated yet";
+  const d=new Date(c.updatedAt);
+  if(isNaN(d.getTime()))return "Not updated yet";
+  return d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})+" · "+
+         d.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
+}
+function daysAgo(ds){
+  if(!ds)return "";
+  const d=new Date(ds+"T00:00:00"),t=new Date();
+  t.setHours(0,0,0,0);
+  const n=Math.floor((t-d)/86400000);
+  return n<=0?"Today":n===1?"1 day ago":n+" days ago";
+}
+
+function home(){
+  const selected=dashboardDate||dateNow(),today=dateNow();
+  const te=db.entries.filter(e=>e.date===selected);
+  let sales=0,paid=0,jg=0,cg=0;
+  te.forEach(e=>{
+    sales+=Number(e.amount)||0; paid+=Number(e.paid)||0;
+    jg+=Number(e.jg)||0; cg+=Number(e.cg)||0;
+  });
+
+  let due=0;
+  db.customers.forEach(c=>{
+    let d=Number(c.openDue)||0;
+    db.entries.forEach(e=>{
+      if(e.name===c.name&&e.date<=selected)d+=(Number(e.amount)||0)-(Number(e.paid)||0);
+    });
+    due+=Math.max(0,d);
+  });
+
+  document.getElementById("today").textContent=selectedDateLabel(selected);
+  document.getElementById("main").innerHTML=
+  `<div class="form">
+    <div style="font-weight:700;font-size:17px;margin-bottom:10px">📅 Dashboard Date</div>
+    <input type="date" value="${selected}" max="${today}" onchange="setDate(this.value)">
+    <div class="small" style="margin-top:8px">Selected: ${selectedDateLabel(selected)}</div>
+  </div>
+  <div class="grid">
+    <div class="box"><div class="lbl">Total Customers</div><div class="num">${db.customers.length}</div></div>
+    <div class="box"><div class="lbl">${selected===today?"Today":"Selected Date"} Sales</div><div class="num">${money(sales)}</div></div>
+    <div class="box"><div class="lbl">${selected===today?"Today":"Selected Date"} Payment</div><div class="num">${money(paid)}</div></div>
+    <div class="box"><div class="lbl">Due on ${fmt(selected)}</div><div class="num red">${money(due)}</div></div>
+    <div class="box"><div class="lbl">Jar Given</div><div class="num">${jg}</div></div>
+    <div class="box"><div class="lbl">Can Given</div><div class="num">${cg}</div></div>
+  </div>
+  <div class="btns">
+    <button onclick="go('customers')">👤 Add / Search Customer</button>
+    <button onclick="go('entry')">➕ New Daily Entry</button>
+  </div>
+  <div class="form">
+    <h2>🔴 Customers With Due</h2>
+    <input id="dueSearch" placeholder="🔎 Customer name ya mobile..." oninput="renderDueList(this.value)">
+    <div id="dueList">${renderDueList()}</div>
+  </div>
+  <div class="form">
+    <button class="secondary" onclick="backup()">💾 Backup Data</button><br><br>
+    <button class="green" onclick="document.getElementById('restore').click()">♻️ Restore Backup</button>
+    <input id="restore" type="file" accept=".json" style="display:none" onchange="restore(this)">
+  </div>`;
+}
+function renderDueList(q=""){
+  q=String(q).toLowerCase().trim();
+  const arr=db.customers.map(c=>({c,st:stat(c)}))
+    .filter(x=>x.st.due>0)
+    .filter(x=>!q||(x.c.name+" "+x.c.mobile).toLowerCase().includes(q))
+    .sort((a,b)=>b.st.due-a.st.due);
+  if(!arr.length)return `<p class="small">${q?"Is search se koi due customer nahi mila.":"Abhi koi due customer nahi."}</p>`;
+  return arr.map(x=>{
+    const n=enc(x.c.name);
+    return `<div class="item">
+      <b>${esc(x.c.name)} Ji</b><br>
+      <span class="small">${esc(x.c.mobile)} · </span><span class="red">${money(x.st.due)}</span>
+      <div class="btns">
+        <button class="cardbtn" onclick="sendWAByName('${n}')">📲 WhatsApp Due</button>
+        <button class="cardbtn secondary" onclick="sendSMSByName('${n}')">💬 SIM SMS</button>
+        <button class="cardbtn green" onclick="sendPaymentReminder('${n}')">💰 Payment Reminder</button>
+        <button class="cardbtn secondary" onclick="sendReminderSMS('${n}')">💬 Reminder SMS</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+function renderDueListFromInput(){const el=document.getElementById("dueSearch");if(el)document.getElementById("dueList").innerHTML=renderDueList(el.value)}
+
+function customers(){
+  document.getElementById("main").innerHTML=
+  `<div class="form">
+    <h2>👥 Customer Master</h2>
+    <div class="small">Customer Name, Mobile aur Address sirf ek baar save karein.</div>
+    <label>Search Customer</label>
+    <input id="q" oninput="customerList()" placeholder="Name ya mobile">
+    <div id="cl"></div><hr>
+    <h2>➕ New Customer</h2>
+    <label>Customer Name</label><input id="cn">
+    <label>Mobile Number</label><input id="cm" inputmode="tel">
+    <label>Address</label><input id="ca">
+    <div class="row">
+      <div><label>Jar Rate</label><input id="jr" type="number" value="25"></div>
+      <div><label>Can Rate</label><input id="cr" type="number" value="0"></div>
+    </div>
+    <div class="row">
+      <div><label>Previous Due</label><input id="od" type="number" value="0"></div>
+      <div><label>Opening Jar Balance</label><input id="oj" type="number" value="0"></div>
+    </div>
+    <label>Opening Can Balance</label><input id="oc" type="number" value="0">
+    <br><br><button onclick="addCustomer()">💾 Save Customer</button>
+  </div>`;
+  customerList();
+}
+function customerList(){
+  const q=(document.getElementById("q")?.value||"").toLowerCase();
+  const out=db.customers.filter(c=>c.name.toLowerCase().includes(q)||String(c.mobile).includes(q))
+    .map(c=>{
+      const s=stat(c),n=enc(c.name),last=lastDelivery(c);
+      return `<div class="item">
+        <b>${esc(c.name)} Ji</b><br>
+        <span class="small">${esc(c.mobile)} · ${esc(c.address)}</span><br>
+        Due: <b class="red">${money(s.due)}</b> · Jar: <b>${s.jar}</b> · Can: <b>${s.can}</b>
+        <div class="small" style="margin-top:7px">
+          💧 <b>Last Water:</b> ${last?fmt(last.date)+" · "+daysAgo(last.date):"No delivery yet"}<br>
+          🕒 <b>Recently Updated:</b> ${recentUpdatedText(c)}
+        </div>
+        <div class="btns">
+          <button class="cardbtn" onclick="editCustomerByName('${n}')">✏️ Edit</button>
+          <button class="cardbtn redbtn" onclick="deleteCustomerByName('${n}')">🗑️ Delete</button>
+        </div>
+      </div>`;
+    }).join("");
+  document.getElementById("cl").innerHTML=out||'<p class="small">Customer nahi mila.</p>';
+}
+function addCustomer(){
+  const name=document.getElementById("cn").value.trim();
+  const mobile=document.getElementById("cm").value.trim();
+  const address=document.getElementById("ca").value.trim();
+  if(!name||!mobile){alert("Name aur Mobile Number bharna zaroori hai.");return}
+  if(cget(name)){alert("Ye customer already saved hai.");return}
+  db.customers.push({
+    name,mobile,address,
+    jarRate:Number(document.getElementById("jr").value)||0,
+    canRate:Number(document.getElementById("cr").value)||0,
+    openDue:Number(document.getElementById("od").value)||0,
+    openJar:Number(document.getElementById("oj").value)||0,
+    openCan:Number(document.getElementById("oc").value)||0,
+    updatedAt:new Date().toISOString()
+  });
+  save();alert("Customer save ho gaya.");customers();
+}
+function editCustomerByName(en){
+  const c=cget(dec(en));if(!c){alert("Customer nahi mila.");return}
+  const s=stat(c);
+  const newName=prompt("Customer Name:",c.name);if(newName===null)return;
+  const newMobile=prompt("Mobile Number:",c.mobile);if(newMobile===null)return;
+  const newAddress=prompt("Address:",c.address);if(newAddress===null)return;
+  const newJarRate=prompt("Jar Rate:",c.jarRate);if(newJarRate===null)return;
+  const newCanRate=prompt("Can Rate:",c.canRate);if(newCanRate===null)return;
+  const newDue=prompt("Current Due / Balance:",s.due);if(newDue===null)return;
+  const newJar=prompt("Current Jar Balance:",s.jar);if(newJar===null)return;
+  const newCan=prompt("Current Can Balance:",s.can);if(newCan===null)return;
+  const old=c.name;c.name=newName.trim();c.mobile=String(newMobile).trim();c.address=String(newAddress).trim();
+  c.jarRate=Number(newJarRate)||0;c.canRate=Number(newCanRate)||0;
+  c.openDue=Number(newDue)||0;c.openJar=Number(newJar)||0;c.openCan=Number(newCan)||0;c.updatedAt=new Date().toISOString();
+  if(old!==c.name)db.entries.forEach(e=>{if(e.name===old)e.name=c.name});
+  save();alert("Customer details update ho gayi.");customers();
+}
+function deleteCustomerByName(en){
+  const name=dec(en);if(!cget(name))return;
+  const has=db.entries.some(e=>e.name===name);
+  if(!confirm(has?"Purani delivery entries bhi delete ho jayengi. Kya delete karna hai?":"Kya is customer ko delete karna hai?"))return;
+  db.customers=db.customers.filter(c=>c.name!==name);
+  db.entries=db.entries.filter(e=>e.name!==name);
+  save();alert("Customer delete ho gaya.");customers();
+}
+
+function entry(){
+  if(!db.customers.length){
+    document.getElementById("main").innerHTML='<div class="form"><h2>Pehle Customer add karein.</h2><button onclick="go(\'customers\')">👤 Add Customer</button></div>';return;
+  }
+  document.getElementById("main").innerHTML=
+  `<div class="form">
+    <h2>🚚 Daily Entry</h2>
+    <label>Date</label><input id="dt" type="date" value="${dateNow()}">
+    <label>🔎 Search Customer</label>
+    <input id="entrySearch" oninput="filterEntryCustomers()" placeholder="Naam ya mobile number likhein..." autocomplete="off">
+    <div id="entryResult" class="searchResult"></div>
+    <input id="en" type="hidden">
+    <div class="row">
+      <div><label>Address</label><input id="ea" readonly></div>
+      <div><label>Mobile</label><input id="em" readonly></div>
+    </div>
+    <div class="box" style="margin:10px 0;background:#fff7ed;border:1px solid #fed7aa">
+      <div class="lbl" id="eprevLabel">Previous Balance / Previous Due</div>
+      <div id="eprev" class="num red">₹0</div>
+    </div>
+    <div class="row">
+      <div><label>Jar Rent (Today)</label><input id="ejr" type="number" min="0" step="0.01"></div>
+      <div><label>Can Rent (Today)</label><input id="ecr" type="number" min="0" step="0.01"></div>
+    </div>
+    <h2>🫙 Jar</h2>
+    <div class="row">
+      <div><label>Jar Given</label><input id="jg" type="number" min="0"></div>
+      <div><label>Empty Jar Received</label><input id="je" type="number" min="0"></div>
+    </div>
+    <h2>🥫 Can</h2>
+    <div class="row">
+      <div><label>Can Given</label><input id="cg" type="number" min="0"></div>
+      <div><label>Empty Can Received</label><input id="ce" type="number" min="0"></div>
+    </div>
+    <label>Payment Received</label><input id="pay" type="number" min="0">
+    <div id="preview" class="msg">Customer select karne ke liye upar naam ya mobile search karein.</div>
+    <br><button onclick="saveEntry(false)">💾 Save Entry</button><br><br>
+    <button class="green" onclick="saveEntry(true)">🟢 Save + Send WhatsApp</button><br><br>
+    <button class="secondary" onclick="saveEntrySMS()">💬 Save + Send SMS</button>
+  </div>`;
+  ["jg","je","cg","ce","pay","ejr","ecr"].forEach(id=>document.getElementById(id).addEventListener("input",preview));
+}
+function filterEntryCustomers(){
+  const q=(document.getElementById("entrySearch").value||"").toLowerCase().trim();
+  const box=document.getElementById("entryResult");
+  if(!q){box.innerHTML="";return}
+  const list=db.customers.filter(c=>(c.name+" "+c.mobile).toLowerCase().includes(q)).slice(0,12);
+  box.innerHTML=list.length?list.map(c=>`<button onclick="selectEntryCustomer('${enc(c.name)}')">${esc(c.name)} Ji<br><span class="small">${esc(c.mobile)} · ${esc(c.address)}</span></button>`).join(""):'<div class="small" style="padding:10px">Customer nahi mila.</div>';
+}
+function selectEntryCustomer(en){
+  const c=cget(dec(en));if(!c)return;
+  document.getElementById("en").value=c.name;
+  document.getElementById("entrySearch").value=c.name;
+  document.getElementById("entryResult").innerHTML="";
+  document.getElementById("ea").value=c.address||"";
+  document.getElementById("em").value=c.mobile||"";
+  document.getElementById("ejr").value=c.jarRate||0;
+  document.getElementById("ecr").value=c.canRate||0;
+  const s=stat(c);
+  document.getElementById("eprev").textContent=money(s.due);
+  document.getElementById("eprevLabel").textContent=s.due<0?"Previous Advance":"Previous Due";
+  preview();
+}
+function preview(){
+  const name=document.getElementById("en")?.value;
+  const p=document.getElementById("preview");if(!p)return;
+  if(!name){p.textContent="Customer select karne ke liye upar naam ya mobile search karein.";return}
+  const c=cget(name);if(!c)return;
+  const s=stat(c);
+  const jr=Number(document.getElementById("ejr").value)||0,cr=Number(document.getElementById("ecr").value)||0;
+  const pay=Number(document.getElementById("pay").value)||0;
+  const total=jr+cr;
+  const after=s.due+total-pay;
+  p.innerHTML=`<b>${esc(c.name)} Ji</b><br>Today Rent: ${money(total)} · Payment: ${money(pay)}<br>After Entry Balance: <b class="${after>0?'red':'green'}">${money(after)}</b>`;
+}
+function entryData(){
+  const name=document.getElementById("en").value;
+  if(!name){alert("Pehle customer select karein.");return null}
+  const c=cget(name);
+  const date=document.getElementById("dt").value||dateNow();
+  const jr=Number(document.getElementById("ejr").value)||0,cr=Number(document.getElementById("ecr").value)||0;
+  const jg=Number(document.getElementById("jg").value)||0,je=Number(document.getElementById("je").value)||0;
+  const cg=Number(document.getElementById("cg").value)||0,ce=Number(document.getElementById("ce").value)||0;
+  const paid=Number(document.getElementById("pay").value)||0;
+  const amount=jr+cr;
+  return {name,date,jr,cr,amount,paid,jg,je,cg,ce,time:currentTime(),updatedAt:new Date().toISOString(),mobile:c.mobile,address:c.address};
+}
+function saveEntry(sendWA){
+  const e=entryData();if(!e)return;
+  db.entries.push(e);
+  const c=cget(e.name);c.updatedAt=new Date().toISOString();save();
+  alert("Daily entry save ho gayi.");
+  if(sendWA)sendWAForEntry(e);
+  go("history");
+}
+function saveEntrySMS(){
+  const e=entryData();if(!e)return;
+  db.entries.push(e);const c=cget(e.name);c.updatedAt=new Date().toISOString();save();
+  alert("Daily entry save ho gayi.");sendSMSForEntry(e);go("history");
+}
+
+function messageForCustomer(c,due){
+  return `Hello ${c.name} Ji,\n\nAapka Aqua Super ka ${money(due)} payment due hai.\nAapse request hai ki please apna pending payment convenient time par kar dein.\nPayment karne ke baad please hume inform kar dein.\n\nThank you – Aqua Super`;
+}
+function waUrl(phone,msg){
+  const p=String(phone||"").replace(/\D/g,"");
+  return "https://wa.me/"+p+"?text="+encodeURIComponent(msg);
+}
+function sendWAByName(en){
+  const c=cget(dec(en));if(!c)return;
+  const s=stat(c);if(s.due<=0){alert("Is customer ka koi due amount nahi hai.");return}
+  const msg=messageForCustomer(c,s.due);
+  if(confirm(msg+"\n\nWhatsApp kholen?"))window.open(waUrl(c.mobile,msg),"_blank");
+}
+function sendPaymentReminder(en){sendWAByName(en)}
+function sendSMSByName(en){
+  const c=cget(dec(en));if(!c)return;
+  const s=stat(c);if(s.due<=0){alert("Is customer ka koi due amount nahi hai.");return}
+  const msg=`Hello ${c.name} Ji, Aqua Super ka ${money(s.due)} payment due hai. Please convenient time par payment kar dein. Thank you – Aqua Super`;
+  window.location.href="sms:"+String(c.mobile).replace(/\D/g,"")+"?body="+encodeURIComponent(msg);
+}
+function sendReminderSMS(en){sendSMSByName(en)}
+function sendWAForEntry(e){
+  const c=cget(e.name);if(!c)return;
+  const s=stat(c);
+  const msg=`Hello ${c.name} Ji,\n\nAaj ${selectedDateLabel(e.date)} ko Aqua Super delivery entry:\nJar Rent: ${money(e.jr)}\nCan Rent: ${money(e.cr)}\nPayment Received: ${money(e.paid)}\nCurrent Balance: ${money(s.due)}\n\nThank you – Aqua Super`;
+  if(confirm(msg+"\n\nWhatsApp kholen?"))window.open(waUrl(c.mobile,msg),"_blank");
+}
+function sendSMSForEntry(e){
+  const c=cget(e.name);if(!c)return;
+  const s=stat(c);
+  const msg=`Aqua Super: ${c.name} Ji, today's entry saved. Rent ${money(e.amount)}, Payment ${money(e.paid)}, Current Balance ${money(s.due)}.`;
+  window.location.href="sms:"+String(c.mobile).replace(/\D/g,"")+"?body="+encodeURIComponent(msg);
+}
+
+function history(){
+  const rows=[...db.entries].sort((a,b)=>{
+    const x=(b.date||"")+" "+(b.time||"");const y=(a.date||"")+" "+(a.time||"");
+    return x.localeCompare(y);
+  });
+  document.getElementById("today").textContent="Daily Log";
+  const q=window._logQ||"";
+  const date=window._logDate||"";
+  const filtered=rows.filter(e=>
+    (!date||e.date===date)&&
+    (!q||(e.name+" "+e.mobile+" "+e.address).toLowerCase().includes(q.toLowerCase()))
+  );
+  const table=filtered.map((e,i)=>`
+    <tr>
+      <td>${esc(e.date)}</td>
+      <td>${esc(dayName(e.date))}</td>
+      <td>${esc(e.time||"")}</td>
+      <td><b>${esc(e.name)} Ji</b></td>
+      <td>${esc(e.mobile||"")}</td>
+      <td>${esc(e.address||"")}</td>
+      <td>${money(e.jr)}</td>
+      <td>${money(e.cr)}</td>
+      <td>${e.jg||0}</td>
+      <td>${e.je||0}</td>
+      <td>${e.cg||0}</td>
+      <td>${e.ce||0}</td>
+      <td>${money(e.amount)}</td>
+      <td>${money(e.paid)}</td>
+      <td class="${stat(cget(e.name)).due>0?'red':'green'}">${money(stat(cget(e.name)).due)}</td>
+    </tr>`).join("");
+
+  document.getElementById("main").innerHTML=
+  `<div class="form">
+    <h2>🔎 Daily Log</h2>
+    <div class="row">
+      <div><label>Date Filter</label><input type="date" value="${date}" onchange="window._logDate=this.value;history()"></div>
+      <div><label>Customer Search</label><input value="${esc(q)}" oninput="window._logQ=this.value;history()" placeholder="Name / mobile"></div>
+    </div>
+    <div class="small" style="margin-top:8px">हर entry में Date, Day, Time और customer details यहाँ दिखेंगी।</div>
+    <div class="tableWrap">
+      <table class="aquaLogTable">
+        <thead><tr>
+          <th>Date</th><th>Day</th><th>Time</th><th>Customer</th><th>Mobile</th><th>Address</th>
+          <th>Jar Rent</th><th>Can Rent</th><th>Jar Given</th><th>Empty Jar</th>
+          <th>Can Given</th><th>Empty Can</th><th>Amount</th><th>Payment</th><th>Current Balance</th>
+        </tr></thead>
+        <tbody>${table||'<tr><td colspan="15">No entries found.</td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>
+  <div class="form">
+    <h2>🕒 Customer Recent Update</h2>
+    <div class="small">यह जानकारी अलग summary में है; Daily Log table में “Recently Updated” नाम का कोई column नहीं है।</div>
+    ${db.customers.map(c=>{
+      const l=lastDelivery(c);
+      return `<div class="item"><b>${esc(c.name)} Ji</b>
+        <div class="logMeta">💧 Last Water: ${l?fmt(l.date)+" · "+daysAgo(l.date):"No delivery yet"}</div>
+        <div class="logMeta">🕒 Recently Updated: ${recentUpdatedText(c)}</div>
+      </div>`;
+    }).join("")}
+  </div>`;
+}
+
+function backup(){
+  const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="Aqua_Super_Backup_"+dateNow()+".json";a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function restore(input){
+  const file=input.files&&input.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=function(){
+    try{
+      const x=JSON.parse(r.result);
+      if(!Array.isArray(x.customers)||!Array.isArray(x.entries))throw new Error("Invalid backup");
+      if(!confirm("Existing data replace karke backup restore karna hai?"))return;
+      db=x;save();alert("Backup restore ho gaya.");go("home");
+    }catch(e){alert("Backup file sahi format mein nahi hai.")}
+  };
+  r.readAsText(file);
+}
+
+document.getElementById("today").textContent=selectedDateLabel(dashboardDate);
+go("home");
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+}
+</script>
+</body>
+</html>
