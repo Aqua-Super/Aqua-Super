@@ -1,12 +1,12 @@
 {
   "name": "Aqua Super",
   "short_name": "Aqua Super",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f2f7fb",
+  "background_color": "#ffffff",
   "theme_color": "#075985",
-  "description": "Aqua Super water delivery management",
+  "description": "Aqua Super customer and water delivery management PWA",
   "icons": [
     {
       "src": "icon-192.png",
