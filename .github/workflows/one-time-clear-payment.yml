@@ -1,0 +1,53 @@
+name: One-time Payment Field Fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, 'Fix Daily Entry payment field reset') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch Daily Entry payment field
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          old1 = ''' db.entries.push(e);c.updatedAt=new Date().toISOString();save();
+ if(wa){sendWA(e,c)}else{alert("Entry save ho gayi.");go("home")}'''
+          new1 = ''' db.entries.push(e);c.updatedAt=new Date().toISOString();save();
+ var paymentField=document.getElementById("pay");if(paymentField)paymentField.value="";
+ if(wa){sendWA(e,c)}else{alert("Entry save ho gayi.");go("home")}'''
+
+          old2 = ''' db.entries.push(e);c.updatedAt=new Date().toISOString();save();sendSMS(e,c);'''
+          new2 = ''' db.entries.push(e);c.updatedAt=new Date().toISOString();save();
+ var paymentField=document.getElementById("pay");if(paymentField)paymentField.value="";
+ sendSMS(e,c);'''
+
+          if old1 not in s:
+              raise SystemExit('Save Entry target not found; refusing to modify index.html')
+          if old2 not in s:
+              raise SystemExit('Save + Send SMS target not found; refusing to modify index.html')
+
+          s = s.replace(old1, new1, 1)
+          s = s.replace(old2, new2, 1)
+          p.write_text(s, encoding='utf-8')
+          print('Daily Entry Payment Received field will now clear after Save / WhatsApp / SMS.')
+
+      - name: Commit patch and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html .github/workflows/one-time-clear-payment.yml
+          git commit -m "Fix Daily Entry payment field reset"
+          git push
