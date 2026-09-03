@@ -1,4 +1,4 @@
-const CACHE_NAME = "aqua-super-pwa-v8-20260825";
+const CACHE_NAME = "aqua-super-pwa-v9-20260903";
 
 const APP_SHELL = [
   "./",

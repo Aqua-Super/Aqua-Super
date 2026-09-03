@@ -405,18 +405,25 @@ function preview(){
  var amount=jg*(Number(document.getElementById("ejr").value)||0)+cg*(Number(document.getElementById("ecr").value)||0);
  document.getElementById("preview").innerHTML="Previous "+balanceLabel(s.due)+": <b>"+balanceMoney(s.due)+"</b><br>Today\'s Amount: <b>"+money(amount)+"</b><br>Total "+balanceLabel(s.due+amount-p)+": <b>"+balanceMoney(s.due+amount-p)+"</b><br>Jar Balance: <b>"+(s.jar+jg-je)+"</b> · Can Balance: <b>"+(s.can+cg-ce)+"</b>";
 }
+function clearDailyEntryAmountBox(){
+  var paymentField=document.getElementById("pay");
+  if(paymentField){
+    paymentField.value="";
+    paymentField.dispatchEvent(new Event("input",{bubbles:true}));
+  }
+}
 function saveEntry(wa){
  var c=cget(document.getElementById("en").value),jg=+document.getElementById("jg").value||0,je=+document.getElementById("je").value||0,cg=+document.getElementById("cg").value||0,ce=+document.getElementById("ce").value||0,p=+document.getElementById("pay").value||0,s=stat(c),jarRate=+document.getElementById("ejr").value||0,canRate=+document.getElementById("ecr").value||0,amount=jg*jarRate+cg*canRate;
  var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due,createdAt:new Date().toISOString()};
  db.entries.push(e);c.updatedAt=new Date().toISOString();save();
- var paymentField=document.getElementById("pay");if(paymentField)paymentField.value="";
+ clearDailyEntryAmountBox();
  if(wa){sendWA(e,c)}else{alert("Entry save ho gayi.");go("home")}
 }
 function saveEntrySMS(){
  var c=cget(document.getElementById("en").value),jg=+document.getElementById("jg").value||0,je=+document.getElementById("je").value||0,cg=+document.getElementById("cg").value||0,ce=+document.getElementById("ce").value||0,p=+document.getElementById("pay").value||0,s=stat(c),jarRate=+document.getElementById("ejr").value||0,canRate=+document.getElementById("ecr").value||0,amount=jg*jarRate+cg*canRate;
  var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due,createdAt:new Date().toISOString()};
  db.entries.push(e);c.updatedAt=new Date().toISOString();save();
- var paymentField=document.getElementById("pay");if(paymentField)paymentField.value="";sendSMS(e,c);
+ clearDailyEntryAmountBox();sendSMS(e,c);
 }
 function message(e,c){
  var s=stat(c);
