@@ -381,12 +381,12 @@ function saveEntry(wa){
  var c=cget(document.getElementById("en").value),jg=+document.getElementById("jg").value||0,je=+document.getElementById("je").value||0,cg=+document.getElementById("cg").value||0,ce=+document.getElementById("ce").value||0,p=+document.getElementById("pay").value||0,s=stat(c),jarRate=+document.getElementById("ejr").value||0,canRate=+document.getElementById("ecr").value||0,amount=jg*jarRate+cg*canRate;
  var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due};
  db.entries.push(e);c.updatedAt=new Date().toISOString();save();
- if(wa){sendWA(e,c)}else{alert("Entry save ho gayi.");go("home")}
+ if(wa){sendWA(e,c);document.getElementById("pay").value=""}else{alert("Entry save ho gayi.");go("home")}
 }
 function saveEntrySMS(){
  var c=cget(document.getElementById("en").value),jg=+document.getElementById("jg").value||0,je=+document.getElementById("je").value||0,cg=+document.getElementById("cg").value||0,ce=+document.getElementById("ce").value||0,p=+document.getElementById("pay").value||0,s=stat(c),jarRate=+document.getElementById("ejr").value||0,canRate=+document.getElementById("ecr").value||0,amount=jg*jarRate+cg*canRate;
  var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due};
- db.entries.push(e);c.updatedAt=new Date().toISOString();save();sendSMS(e,c);
+ db.entries.push(e);c.updatedAt=new Date().toISOString();save();sendSMS(e,c);document.getElementById("pay").value="";
 }
 function message(e,c){
  var s=stat(c);
