@@ -1,0 +1,59 @@
+name: Fix Aqua Super Amount Reset
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Patch only Amount reset
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('Aqua_Super.html')
+          s = p.read_text(encoding='utf-8')
+
+          old1 = 'if(wa){sendWA(e,c)}else{alert("Entry save ho gayi.");go("home")}\n}'
+          new1 = 'if(wa){sendWA(e,c);document.getElementById("pay").value=""}else{alert("Entry save ho gayi.");go("home")}\n}'
+          old2 = 'db.entries.push(e);c.updatedAt=new Date().toISOString();save();sendSMS(e,c);\n}'
+          new2 = 'db.entries.push(e);c.updatedAt=new Date().toISOString();save();sendSMS(e,c);document.getElementById("pay").value="";\n}'
+
+          if s.count(old1) != 1:
+              raise SystemExit(f'Expected exactly 1 Save Entry target, found {s.count(old1)}')
+          if s.count(old2) != 1:
+              raise SystemExit(f'Expected exactly 1 SMS target, found {s.count(old2)}')
+
+          s = s.replace(old1, new1)
+          s = s.replace(old2, new2)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit only the Amount reset patch
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Aqua_Super.html
+          git diff --cached --check
+          git diff --cached -- Aqua_Super.html
+          git commit -m 'Fix Amount field reset after save and send'
+          git push
+
+      - name: Remove temporary workflow
+        shell: bash
+        run: |
+          git rm .github/workflows/fix-amount-reset.yml
+          git commit -m 'Remove temporary amount reset workflow'
+          git push
