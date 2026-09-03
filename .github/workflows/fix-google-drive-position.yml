@@ -1,0 +1,47 @@
+name: Fix Google Drive Backup Position
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-google-drive-position.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Move Google Drive card to bottom
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('Aqua_Super.html')
+          s = p.read_text(encoding='utf-8')
+
+          card = '''<div id="aquaGoogleDriveCard" style="margin:16px 12px 20px;padding:16px;border-radius:16px;background:#f0fdf4;border:1px solid #bbf7d0;">\n<div style="font-size:18px;font-weight:800;color:#166534;">☁️ Google Drive Backup</div>\n<div style="font-size:13px;color:#475569;margin:7px 0 12px;">पहली बार Google Login करें। उसके बाद रोज़ यहीं से backup सीधे Google Drive में जाएगा।</div>\n<button onclick="aquaDriveBackup()" style="width:100%;padding:13px;border:0;border-radius:12px;background:#16a34a;color:white;font-size:16px;font-weight:800;">☁️ Google Login / Backup</button>\n</div>'''
+
+          # Remove the old static card if present, then place exactly one copy
+          # after the bottom navigation so it remains below the Home content.
+          s = s.replace(card + '<script>', '<script>')
+          s = s.replace(card, '')
+          marker = '</nav>'
+          if marker not in s:
+              raise SystemExit('Navigation marker not found')
+          s = s.replace(marker, marker + '\n' + card, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit corrected HTML
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Aqua_Super.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Place Google Drive backup below Home content [skip ci]'
+          git push
