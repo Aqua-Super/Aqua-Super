@@ -36,6 +36,9 @@ jobs:
           # Remove old external data-status block.
           s = re.sub(r'<div id="aquaDataStatus"[^>]*>.*?</div>\s*', '', s, count=1, flags=re.S)
 
+          # Remove the closing wrapper left by the old misplaced card.
+          s = s.replace('</nav>\n</div><script>', '</nav>\n<script>', 1)
+
           # Full mobile width while preserving app logic and data.
           old_css = 'main{padding:14px 12px 85px;max-width:700px;margin:auto}'
           new_css = 'main{width:100%;max-width:none;margin:0;padding:14px 0 85px;overflow-x:hidden}\n.form{margin-left:12px;margin-right:12px}\n.grid{margin-left:12px;margin-right:12px}\n.btns{margin-left:12px;margin-right:12px}'
