@@ -1,4 +1,4 @@
-const CACHE_NAME = "aqua-super-pwa-v10-20260903-fullwidth";
+const CACHE_NAME = "aqua-super-pwa-v11-20260903-hide-install";
 
 const APP_SHELL = [
   "./",
@@ -15,6 +15,7 @@ html,body{width:100%;max-width:none;overflow-x:hidden}
 main{width:100%!important;max-width:none!important;margin:0!important;padding-left:0!important;padding-right:0!important}
 #aquaGoogleDriveCard{margin-left:0!important;margin-right:0!important}
 #aquaDailyBackupBox{margin-left:0!important;margin-right:0!important}
+#aquaInstallBtn{display:none!important}
 </style>`;
 
 async function injectMobileWidthFix(response) {
