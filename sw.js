@@ -1,4 +1,4 @@
-const CACHE_NAME = "aqua-super-pwa-v11-20260903-hide-install";
+const CACHE_NAME = "aqua-super-pwa-v12-20260903-button-width";
 
 const APP_SHELL = [
   "./",
@@ -16,6 +16,9 @@ main{width:100%!important;max-width:none!important;margin:0!important;padding-le
 #aquaGoogleDriveCard{margin-left:0!important;margin-right:0!important}
 #aquaDailyBackupBox{margin-left:0!important;margin-right:0!important}
 #aquaInstallBtn{display:none!important}
+/* Keep every customer action button exactly the same width in its two-column row. */
+.item .row{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:9px!important;width:100%!important}
+.item .row>button,.item .row>a,.item .row>input{width:100%!important;min-width:0!important;max-width:none!important;display:block!important;margin-left:0!important;margin-right:0!important}
 </style>`;
 
 async function injectMobileWidthFix(response) {
