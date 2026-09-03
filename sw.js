@@ -1,4 +1,4 @@
-const CACHE_NAME = "aqua-super-pwa-v14-20260904-notes-search";
+const CACHE_NAME = "aqua-super-pwa-v15-20260904-notes-search-final";
 
 const APP_SHELL = [
   "./",
@@ -30,7 +30,8 @@ const NOTES_INJECT = `
 .aqua-note-customer{padding:13px 0;border-bottom:1px solid #e5edf3}.aqua-note-customer:last-child{border-bottom:0}
 .aqua-note-name{font-size:17px;font-weight:800;color:#17324d}.aqua-note-phone{font-size:12px;color:#64748b;margin-top:3px}.aqua-note-btns{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:8px}
 .aqua-note-btns button{font-size:13px;padding:11px 5px}.aqua-batch{padding:11px;border-radius:12px;background:#eff6ff;border:1px solid #bfdbfe;margin:10px 0;color:#075985;font-size:13px}
-.aqua-notes-search{width:100%;padding:12px 14px;border:1px solid #ccd8e3;border-radius:10px;font-size:15px;background:#fff;box-sizing:border-box;margin:8px 0 12px}
+.aqua-notes-search-wrap{padding:0 12px 10px;background:#fff}
+.aqua-notes-search{width:100%;padding:12px 14px;border:1px solid #ccd8e3;border-radius:10px;font-size:15px;background:#fff;box-sizing:border-box}
 .aqua-notes-noresult{padding:10px 0;color:#64748b;font-size:13px}
 @media(max-width:360px){.aqua-notes-actions,.aqua-note-btns{grid-template-columns:1fr}.aqua-notes-text{min-height:130px}}
 </style>
@@ -69,7 +70,7 @@ const NOTES_INJECT = `
       var main=el("main"),nav=document.querySelector("nav");if(!main)return;
       if(nav){nav.querySelectorAll("button").forEach(function(b){b.className=""});if(el("nNotes"))el("nNotes").className="active"}
       var saved="";try{saved=localStorage.getItem(KEY)||""}catch(e){}
-      main.innerHTML='<div class="aqua-notes-wrap"><div class="aqua-notes-title">📝 Notes / اطلاع</div><div class="aqua-notes-sub">Plant band, gaadi breakdown, staff nahi aaya ya koi bhi update customer ko bhejein.</div><textarea id="aquaNotesMessage" class="aqua-notes-text" placeholder="Yahan apna message manually type karein...">'+(window.esc?esc(saved):saved.replace(/[&<>]/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[m]}))+'</textarea><div class="aqua-notes-actions"><button class="aqua-note-wa" onclick="aquaNotesSendAllWhatsApp()">📲 All Customer<br>WhatsApp</button><button class="aqua-note-sms" onclick="aquaNotesSendAllSMS()">💬 All Customer<br>SIM SMS</button></div><div id="aquaNotesBatch" class="aqua-batch"></div></div><div class="box" style="margin:0 12px 12px"><h2>👥 All Customers</h2><div class="small" style="margin-bottom:8px">Har customer ko Notes message alag se WhatsApp ya SIM SMS kar sakte hain.</div><input id="aquaNotesCustomerSearch" class="aqua-notes-search" type="search" placeholder="🔎 Customer name ya mobile number search karein..." oninput="aquaNotesFilterCustomers(this.value)" autocomplete="off"><div id="aquaNotesCustomerList"></div></div>';
+      main.innerHTML='<div class="aqua-notes-wrap"><div class="aqua-notes-title">📝 Notes / اطلاع</div><div class="aqua-notes-sub">Plant band, gaadi breakdown, staff nahi aaya ya koi bhi update customer ko bhejein.</div><textarea id="aquaNotesMessage" class="aqua-notes-text" placeholder="Yahan apna message manually type karein...">'+(window.esc?esc(saved):saved.replace(/[&<>]/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[m]}))+'</textarea><div class="aqua-notes-actions"><button class="aqua-note-wa" onclick="aquaNotesSendAllWhatsApp()">📲 All Customer<br>WhatsApp</button><button class="aqua-note-sms" onclick="aquaNotesSendAllSMS()">💬 All Customer<br>SIM SMS</button></div><div id="aquaNotesBatch" class="aqua-batch"></div></div><div class="aqua-notes-search-wrap"><input id="aquaNotesCustomerSearch" class="aqua-notes-search" type="search" placeholder="🔎 Customer name ya mobile number search karein..." oninput="aquaNotesFilterCustomers(this.value)" autocomplete="off"></div><div class="box" style="margin:0 12px 12px"><h2>👥 All Customers</h2><div class="small" style="margin-bottom:8px">Har customer ko Notes message alag se WhatsApp ya SIM SMS kar sakte hain.</div><div id="aquaNotesCustomerList"></div></div>';
       renderCustomerList("");renderBatch();var t=el("aquaNotesMessage");if(t)t.addEventListener("input",saveMsg);
     };
     var oldGo=window.go;window.go=function(p){if(p==="notes"){window.aquaNotesRender();return}if(typeof oldGo==="function")oldGo(p)};
