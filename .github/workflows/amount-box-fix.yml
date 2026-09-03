@@ -1,0 +1,55 @@
+name: Aqua Super amount box fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/amount-box-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: !contains(github.event.head_commit.message, 'Apply Daily Entry amount box fix')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply only amount-box clearing and refresh PWA cache
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          marker = 'function clearDailyEntryAmountBox(){'
+          if marker not in s:
+              needle = 'function saveEntry(wa){'
+              helper = '''function clearDailyEntryAmountBox(){\n  var paymentField=document.getElementById("pay");\n  if(paymentField){\n    paymentField.value="";\n    paymentField.dispatchEvent(new Event("input",{bubbles:true}));\n  }\n}\n'''
+              if needle not in s:
+                  raise SystemExit('saveEntry marker not found')
+              s = s.replace(needle, helper + needle, 1)
+
+          old = 'var paymentField=document.getElementById("pay");if(paymentField)paymentField.value="";'
+          s2 = s.replace(old, 'clearDailyEntryAmountBox();')
+          if s2 == s:
+              raise SystemExit('amount-box clear statements not found')
+          p.write_text(s2, encoding='utf-8')
+
+          sw = Path('sw.js')
+          w = sw.read_text(encoding='utf-8')
+          w2 = w.replace('const CACHE_NAME = "aqua-super-pwa-v8-20260825";', 'const CACHE_NAME = "aqua-super-pwa-v9-20260903";')
+          if w2 == w:
+              raise SystemExit('service-worker cache version marker not found')
+          sw.write_text(w2, encoding='utf-8')
+
+      - name: Commit final changes and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html sw.js
+          git rm .github/workflows/amount-box-fix.yml
+          git commit -m "Apply Daily Entry amount box fix"
+          git push
