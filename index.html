@@ -988,5 +988,23 @@ function aquaImportOldBackup(){
   };
 })();
 </script>
-<div style="font-size:11px;text-align:center;opacity:.7;padding:8px">SIM 2: 7031426550 (Android Messaging app will choose the SIM)</div></body>
+<div style="font-size:11px;text-align:center;opacity:.7;padding:8px">SIM 2: 7031426550 (Android Messaging app will choose the SIM)</div>
+<!-- AQUA-ONE-TIME-RESTORE-FIX -->
+<script>
+(function(){
+  function hideRestoreGoogleDrive(){
+    document.querySelectorAll('button,a,[role="button"]').forEach(function(el){
+      var t=(el.textContent||'').trim().replace(/\s+/g,' ').toLowerCase();
+      if(t.indexOf('restore from google drive') !== -1){
+        el.style.display='none';
+      }
+    });
+  }
+  hideRestoreGoogleDrive();
+  if(document.documentElement){
+    new MutationObserver(hideRestoreGoogleDrive).observe(document.documentElement,{subtree:true,childList:true});
+  }
+})();
+</script>
+</body>
 </html>
