@@ -1,0 +1,123 @@
+name: Aqua Notes Fix
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Notes bulk buttons
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          marker = '<script id="aqua-direct-notes-script">'
+          if marker not in s:
+              raise SystemExit('Notes direct script marker not found')
+
+          batch = r'''<script id="aqua-direct-notes-script">
+          (function(){
+            var NOTES_KEY="AQUA_SUPER_NOTES_MESSAGE_1";
+            var BATCH_KEY="AQUA_SUPER_NOTES_BATCH_1";
+            function nq(id){return document.getElementById(id)}
+            function noteMsg(){return nq("aquaNotesMessage") ? nq("aquaNotesMessage").value.trim() : ""}
+            function saveNote(){try{localStorage.setItem(NOTES_KEY,noteMsg())}catch(e){}}
+            function cleanPhone(v){return String(v||"").replace(/\D/g,"")}
+            function waPhone(v){var p=cleanPhone(v);if(p.length===10)return "91"+p;if(p.length===12&&p.indexOf("91")===0)return p;return p}
+            function validCustomers(){return (db.customers||[]).filter(function(c){return c&&cleanPhone(c.mobile||c.phone).length>=10})}
+            function noteUrl(c){return "https://wa.me/"+waPhone(c.mobile||c.phone)+"?text="+encodeURIComponent(noteMsg())}
+            function noteSmsUrl(c){return "sms:"+cleanPhone(c.mobile||c.phone)+"?body="+encodeURIComponent(noteMsg())}
+            function openNoteChannel(c,ch){
+              var msg=noteMsg();
+              if(!msg){alert("Pehle Notes message type karein.");return false}
+              saveNote();
+              if(!c||!cleanPhone(c.mobile||c.phone)){alert("Is customer ka mobile number nahi hai.");return false}
+              window.location.href=(ch==="wa"?noteUrl(c):noteSmsUrl(c));
+              return true;
+            }
+            function startBatch(ch){
+              var msg=noteMsg(),list=validCustomers();
+              if(!msg){alert("Pehle Notes message type karein.");return}
+              if(!list.length){alert("Kisi customer ka valid mobile number nahi mila.");return}
+              saveNote();
+              try{localStorage.setItem(BATCH_KEY,JSON.stringify({channel:ch,index:0,total:list.length,message:msg}))}catch(e){}
+              openNoteChannel(list[0],ch);
+              setTimeout(renderBatch,300);
+            }
+            function renderBatch(){
+              var box=nq("aquaNotesBatch");if(!box)return;
+              var b=null;try{b=JSON.parse(localStorage.getItem(BATCH_KEY)||"null")}catch(e){}
+              if(!b||!b.total){box.innerHTML="";return}
+              var label=b.channel==="wa"?"WhatsApp":"SIM SMS";
+              var pos=Math.min((Number(b.index)||0)+1,b.total);
+              box.innerHTML="📨 <b>All Customer "+label+":</b> "+pos+" / "+b.total+"<br>Message khulne ke baad app mein wapas aakar <b>Next Customer</b> dabayein."+
+                '<button class="aqua-note-next" style="margin-top:9px" onclick="aquaNotesNext()">➡️ Next Customer '+label+'</button>'+ 
+                '<button style="margin-top:7px;background:#64748b" onclick="aquaNotesStopBatch()">✖ Stop Batch</button>';
+            }
+            window.aquaNotesNext=function(){
+              var b=null;try{b=JSON.parse(localStorage.getItem(BATCH_KEY)||"null")}catch(e){}
+              if(!b)return;
+              var list=validCustomers();
+              if(!list.length){aquaNotesStopBatch();return}
+              var next=(Number(b.index)||0)+1;
+              if(next>=list.length){alert("✅ All customers batch complete.");aquaNotesStopBatch();return}
+              b.index=next;b.total=list.length;
+              try{localStorage.setItem(BATCH_KEY,JSON.stringify(b))}catch(e){}
+              if(nq("aquaNotesMessage"))nq("aquaNotesMessage").value=b.message||noteMsg();
+              openNoteChannel(list[next],b.channel);
+              setTimeout(renderBatch,300);
+            };
+            window.aquaNotesStopBatch=function(){try{localStorage.removeItem(BATCH_KEY)}catch(e){}renderBatch()};
+            window.aquaNotesSendAllWhatsApp=function(){startBatch("wa")};
+            window.aquaNotesSendAllSMS=function(){startBatch("sms")};
+            window.aquaNotesSendWhatsApp=function(i){openNoteChannel((db.customers||[])[Number(i)],"wa")};
+            window.aquaNotesSendSMS=function(i){openNoteChannel((db.customers||[])[Number(i)],"sms")};
+            window.aquaNotesRender=function(){
+              var nav=document.querySelector("nav"),main=document.getElementById("main");
+              if(nav){Array.prototype.forEach.call(nav.querySelectorAll("button"),function(b){b.className=""});var nb=nq("nNotes");if(nb)nb.className="active"}
+              if(!main)return;
+              var saved="";try{saved=localStorage.getItem(NOTES_KEY)||""}catch(e){}
+              var list=db.customers||[];
+              var search=(nq("aquaNotesCustomerSearch")?nq("aquaNotesCustomerSearch").value:"").trim().toLowerCase();
+              var out='<div class="aqua-notes-wrap"><div class="aqua-notes-title">📝 Notes / اطلاع</div><div class="aqua-notes-sub">Plant band, gaadi breakdown, staff nahi aaya ya koi bhi update customer ko bhejein.</div><textarea id="aquaNotesMessage" class="aqua-notes-text" placeholder="Yahan apna message manually type karein...">'+esc(saved)+'</textarea><div class="aqua-notes-actions"><button class="aqua-note-wa" onclick="aquaNotesSendAllWhatsApp()">📲 All Customer<br/>WhatsApp</button><button class="aqua-note-sms" onclick="aquaNotesSendAllSMS()">💬 All Customer<br/>SIM SMS</button></div><div id="aquaNotesBatch" class="aqua-batch"></div></div><div class="box" style="margin:0 12px 12px"><input id="aquaNotesCustomerSearch" type="search" value="'+esc(search)+'" placeholder="🔎 Customer name ya mobile number search karein..." autocomplete="off" oninput="aquaNotesFilterCustomers(this.value)" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;background:#fff;margin:0 0 12px"><h2>👥 All Customers</h2><div class="small" style="margin-bottom:8px">Har customer ko isi Notes message ka WhatsApp ya SIM SMS alag se bhej sakte hain.</div>';
+              var matched=0;
+              list.forEach(function(c,i){
+                var name=String(c.name||"").toLowerCase(),mobile=String(c.mobile||c.phone||"");
+                if(search && name.indexOf(search)<0 && mobile.indexOf(search)<0)return;
+                matched++;
+                out+='<div class="aqua-note-customer"><div class="aqua-note-name">'+esc(c.name||"")+' Ji</div><div class="aqua-note-phone">📱 '+esc(c.mobile||c.phone||"Mobile number nahi hai")+'</div><div class="aqua-note-btns"><button class="aqua-note-wa" onclick="aquaNotesSendWhatsApp('+i+')">📲 WhatsApp</button><button class="aqua-note-sms" onclick="aquaNotesSendSMS('+i+')">💬 SIM SMS</button></div></div>';
+              });
+              if(search && matched===0)out+='<div style="padding:14px 0;color:#64748b">Koi matching customer nahi mila.</div>';
+              out+='</div>';main.innerHTML=out;renderBatch();
+              var ta=nq("aquaNotesMessage");if(ta)ta.addEventListener("input",saveNote);
+            };
+            window.aquaNotesFilterCustomers=function(value){
+              var box=nq("aquaNotesCustomerSearch");
+              if(box && box.value!==String(value||""))box.value=String(value||"");
+              window.aquaNotesRender();
+              var input=nq("aquaNotesCustomerSearch");
+              if(input){input.focus();var pos=input.value.length;try{input.setSelectionRange(pos,pos)}catch(e){}}
+            };
+            var oldGo=window.go;window.go=function(p){if(p==="notes"){window.aquaNotesRender();return}if(typeof oldGo==="function")oldGo(p)};
+            try{var nav=document.querySelector("nav");if(nav){if(!nq("nNotes")){var b=document.createElement("button");b.id="nNotes";b.onclick=function(){go("notes")};b.innerHTML="📝<br/>Notes";nav.appendChild(b)}nav.style.gridTemplateColumns="repeat(6,1fr)"}}catch(e){}
+          })();
+          </script>'''
+
+          s = re.sub(r'<script id="aqua-direct-notes-script">[\s\S]*?</script>', batch, s, count=1)
+          p.write_text(s, encoding='utf-8')
+      - name: Commit patched index and remove one-time workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html .github/workflows/aqua-fix-notes.yml
+          git commit -m "Fix Notes All Customer batch sending" || exit 0
+          git rm .github/workflows/aqua-fix-notes.yml
+          git commit -m "Remove one-time Notes fix workflow"
+          git push
