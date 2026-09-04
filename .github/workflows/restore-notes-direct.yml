@@ -1,0 +1,105 @@
+name: Restore Notes Tab Directly
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/restore-notes-direct.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore Notes tab and customer search in index.html
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          # Add Notes as the 6th bottom-navigation tab directly in index.html.
+          if 'id="nNotes"' not in s:
+              marker = '<button id="nHist" onclick="go(\'history\')">🔎<br/>History</button>'
+              replacement = marker + '\n<button id="nNotes" onclick="aquaOpenNotes()">📝<br/>Notes</button>'
+              if marker not in s:
+                  raise SystemExit('History navigation marker not found; stopping safely.')
+              s = s.replace(marker, replacement, 1)
+
+          # Make navigation six equal columns.
+          s = s.replace('grid-template-columns:repeat(5,1fr)', 'grid-template-columns:repeat(6,1fr)', 1)
+
+          # Add a direct Notes renderer. It intentionally changes only the Notes page.
+          if 'id="aqua-direct-notes-script"' not in s:
+              notes = r'''<script id="aqua-direct-notes-script">
+(function(){
+  var KEY='AQUA_SUPER_NOTES_MESSAGE_1';
+  function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function customers(){return (window.db&&Array.isArray(db.customers)?db.customers:[]).filter(function(c){return c&&String(c.mobile||c.phone||'').replace(/\D/g,'').length>=10})}
+  function message(){var x=document.getElementById('aquaNotesMessage');return x?x.value.trim():''}
+  function save(){try{localStorage.setItem(KEY,message())}catch(e){}}
+  function send(c,ch){
+    var m=message();
+    if(!m){alert('Pehle Notes message type karein.');return}
+    save();
+    var phone=String(c.mobile||c.phone||'').replace(/\D/g,'');
+    var url=ch==='wa'?'https://wa.me/'+phone+'?text='+encodeURIComponent(m):'sms:'+phone+'?body='+encodeURIComponent(m);
+    window.location.href=url;
+  }
+  function renderList(q){
+    var box=document.getElementById('aquaNotesCustomerList'); if(!box)return;
+    q=String(q||'').toLowerCase().trim();
+    var out='',found=0;
+    customers().forEach(function(c,i){
+      var hay=(String(c.name||'')+' '+String(c.mobile||c.phone||'')).toLowerCase();
+      if(q && hay.indexOf(q)<0)return;
+      found++;
+      out+='<div class="aqua-note-customer"><div class="aqua-note-name">'+esc(c.name||'Customer')+' Ji</div><div class="aqua-note-phone">📱 '+esc(c.mobile||c.phone||'')+'</div><div class="aqua-note-btns"><button class="aqua-note-wa" onclick="aquaNotesSend('+i+',\'wa\')">📲 WhatsApp</button><button class="aqua-note-sms" onclick="aquaNotesSend('+i+',\'sms\')">💬 SIM SMS</button></div></div>';
+    });
+    box.innerHTML=found?out:'<div class="aqua-notes-noresult">Is search se koi customer nahi mila.</div>';
+  }
+  window.aquaNotesSend=function(i,ch){var a=customers();if(a[i])send(a[i],ch)};
+  window.aquaNotesFilter=function(q){renderList(q)};
+  window.aquaOpenNotes=function(){
+    var main=document.getElementById('main'); if(!main)return;
+    document.querySelectorAll('nav button').forEach(function(b){b.className=''});
+    var n=document.getElementById('nNotes');if(n)n.className='active';
+    var saved='';try{saved=localStorage.getItem(KEY)||''}catch(e){}
+    main.innerHTML='<div class="aqua-notes-wrap"><div class="aqua-notes-title">📝 Notes / اطلاع</div><div class="aqua-notes-sub">Plant band, gaadi breakdown, staff nahi aaya ya koi bhi update customer ko bhejein.</div><textarea id="aquaNotesMessage" class="aqua-notes-text" placeholder="Yahan apna message manually type karein...">'+esc(saved)+'</textarea><div class="aqua-notes-actions"><button class="aqua-note-wa" onclick="aquaNotesAll(\'wa\')">📲 All Customer<br/>WhatsApp</button><button class="aqua-note-sms" onclick="aquaNotesAll(\'sms\')">💬 All Customer<br/>SIM SMS</button></div></div><div class="aqua-notes-search-wrap"><input id="aquaNotesSearch" class="aqua-notes-search" type="search" placeholder="🔎 Customer name ya mobile number search karein..." oninput="aquaNotesFilter(this.value)" autocomplete="off"></div><div class="box" style="margin:0 12px 12px"><h2>👥 All Customers</h2><div class="small" style="margin-bottom:8px">Har customer ko Notes message alag se WhatsApp ya SIM SMS kar sakte hain.</div><div id="aquaNotesCustomerList"></div></div>';
+    var t=document.getElementById('aquaNotesMessage');if(t)t.addEventListener('input',save);
+    renderList('');
+  };
+  window.aquaNotesAll=function(ch){
+    var m=message(),a=customers();
+    if(!m){alert('Pehle Notes message type karein.');return}
+    if(!a.length){alert('Kisi customer ka valid mobile number nahi mila.');return}
+    save();
+    var phone=String(a[0].mobile||a[0].phone||'').replace(/\D/g,'');
+    window.location.href=ch==='wa'?'https://wa.me/'+phone+'?text='+encodeURIComponent(m):'sms:'+phone+'?body='+encodeURIComponent(m);
+  };
+})();
+</script>'''
+              css = r'''<style id="aqua-direct-notes-style">
+.aqua-notes-wrap{margin:0 0 14px;padding:14px 12px 18px;background:#fff;border-radius:0 0 15px 15px;box-shadow:0 2px 9px #0001}.aqua-notes-title{font-size:22px;font-weight:800;color:#17324d;margin:2px 0 5px}.aqua-notes-sub{font-size:13px;color:#64748b;margin-bottom:12px}.aqua-notes-text{width:100%;min-height:150px;padding:13px;border:1px solid #ccd8e3;border-radius:12px;font-size:16px;line-height:1.45;resize:vertical;background:#fff}.aqua-notes-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0}.aqua-notes-actions button{min-height:52px;font-size:14px}.aqua-note-wa{background:#16a34a!important}.aqua-note-sms{background:#2563eb!important}.aqua-note-customer{padding:13px 0;border-bottom:1px solid #e5edf3}.aqua-note-name{font-size:17px;font-weight:800;color:#17324d}.aqua-note-phone{font-size:12px;color:#64748b;margin-top:3px}.aqua-note-btns{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:8px}.aqua-note-btns button{font-size:13px;padding:11px 5px}.aqua-notes-search-wrap{padding:0 12px 10px;background:#fff}.aqua-notes-search{width:100%;padding:12px 14px;border:1px solid #ccd8e3;border-radius:10px;font-size:15px;background:#fff;box-sizing:border-box}.aqua-notes-noresult{padding:10px 0;color:#64748b;font-size:13px}@media(max-width:360px){.aqua-notes-actions,.aqua-note-btns{grid-template-columns:1fr}}
+</style>
+'''
+              s = s.replace('</head>', css + '</head>', 1)
+              s = s.replace('</body>', notes + '</body>', 1)
+
+          p.write_text(s, encoding='utf-8')
+          print('Direct Notes patch applied:', len(s), 'bytes')
+          PY
+
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Restore Notes tab directly in PWA'
+          git push
