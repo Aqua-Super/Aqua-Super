@@ -1,0 +1,37 @@
+name: Hide Install Button
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-install-button:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Hide Install App button in PWA UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '<button id="aquaInstallBtn" type="button">📲 Install App</button>'
+          if old in s:
+              s = s.replace(old, '<button id="aquaInstallBtn" type="button" style="display:none!important" aria-hidden="true">📲 Install App</button>', 1)
+          else:
+              s = s.replace('</style>\n\n<script>', '#aquaInstallBtn{display:none!important}\n</style>\n\n<script>', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Hide Install App button"
+          git push
