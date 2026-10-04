@@ -875,19 +875,35 @@ function aquaDriveAutoSync(){
     aquaDriveSetTopStatus("sync","Syncing...");
     var box=document.getElementById("aquaDriveManualStatus");
     if(box)box.textContent="🔄 Auto Syncing to Google Drive...";
-    try{aquaDriveBackup(true);}catch(e){
+    aquaDriveGetSnapshot().then(function(before){
+      try{
+        if(!aquaDriveBackup(true))throw new Error("Backup could not start");
+      }catch(e){
+        aquaDriveAutoSyncBusy=false;
+        if(box)box.textContent="🔴 Sync Failed / Not Synced";
+        aquaDriveSetTopStatus("err","Sync Failed / Not Synced");
+        return;
+      }
+      aquaDriveVerifyAfterUpload(before,function(ok){
+        aquaDriveAutoSyncBusy=false;
+        if(ok){
+          var now=new Date().toISOString();
+          localStorage.setItem("AQUA_DRIVE_LAST_SYNC",now);
+          var label=new Date(now).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true});
+          aquaDriveSetTopStatus("ok","Sync Successful • Saved to Drive • "+label);
+          var bb=document.getElementById("aquaDriveManualStatus");
+          if(bb)bb.textContent="🟢 Sync Successful • Saved to Google Drive";
+        }else{
+          aquaDriveSetTopStatus("err","Sync Failed / Not Synced");
+          var bb2=document.getElementById("aquaDriveManualStatus");
+          if(bb2)bb2.textContent="🔴 Sync Failed / Not Synced";
+        }
+      });
+    }).catch(function(){
       aquaDriveAutoSyncBusy=false;
-      if(box)box.textContent="🔴 Sync Failed";
-      aquaDriveSetTopStatus("err","Sync Failed");
-      return;
-    }
-    setTimeout(function(){
-      aquaDriveAutoSyncBusy=false;
-      localStorage.setItem("AQUA_DRIVE_LAST_SYNC",new Date().toISOString());
-      aquaDriveSetTopStatus("ok","Sync Updated • Last Sync: "+new Date().toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true}));
-      var b=document.getElementById("aquaDriveManualStatus");
-      if(b)b.textContent="🟢 Sync Updated";
-    },4000);
+      if(box)box.textContent="🔴 Sync Failed / Not Synced";
+      aquaDriveSetTopStatus("err","Not Synced • Drive check failed");
+    });
   },1200);
 }
 
