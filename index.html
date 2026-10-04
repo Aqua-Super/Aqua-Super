@@ -795,23 +795,31 @@ function aquaDriveCheckStatus(silent){
 }
 function aquaGoogleLoginAndBackup(){
   var url=AQUA_BACKUP_WEB_APP_URL;
-  /* If Drive is already connected, do the backup directly without opening another page. */
+  var card=document.getElementById("aquaDriveCardStatus");
+  function cardMsg(msg,color){
+    if(card){card.textContent=msg;card.style.color=color||"#166534";}
+  }
+  cardMsg("🔄 Checking Google Drive connection...", "#075985");
+  aquaDriveSetStatus("syncing","Checking Google Drive...");
   aquaDriveCheckStatus(true).then(function(){
+    /* Already connected: perform the old manual backup directly. */
+    cardMsg("🔄 Backup Google Drive में जा रहा है...", "#075985");
     aquaDriveSetStatus("syncing","Manual backup Google Drive par ja raha hai...");
+    try{ aquaDriveBackup(); }catch(e){
+      cardMsg("🔴 Backup failed — फिर से कोशिश करें", "#b91c1c");
+      aquaDriveSetStatus("error","Backup Not Synced");
+    }
     setTimeout(function(){
-      try{ aquaDriveBackup(); }catch(e){ aquaDriveSetStatus("error","Backup Not Synced"); }
-    },300);
+      cardMsg("🟢 Manual Backup Complete", "#166534");
+    },5000);
   }).catch(function(){
-    /* First-time setup: open the Google authorization/connection page. */
+    /* First-time setup only: open the connection page. */
+    cardMsg("🔐 पहली बार Google Login / Connect करें...", "#92400e");
+    aquaDriveSetStatus("empty","Google Login / Connect required");
     try{
       var w=window.open(url,"_blank");
       if(!w) window.location.href=url;
     }catch(e){}
-    aquaDriveSetStatus("syncing","Google Login / Connect required...");
-    /* After connection, attempt the same manual backup as the old Sync Now button. */
-    setTimeout(function(){
-      try{ aquaDriveBackup(); }catch(e){ aquaDriveSetStatus("error","Backup Not Synced"); }
-    },5000);
   });
 }
 function aquaDriveBackup(){
