@@ -191,7 +191,7 @@ function home(){
  '<div class="btns"><button onclick="go(\'customers\')">👤 Add / Search Customer</button><button onclick="go(\'entry\')">➕ New Daily Entry</button></div>'+
  '<div class="form"><h2>🔴 Customers With Due</h2><div style="margin:10px 0 12px"><input id="dueCustomerSearch" type="search" placeholder="🔎 Customer name ya mobile number search karein..." oninput="filterDueCustomers(this.value)" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;background:#fff"></div><div id="dueList">'+dueList()+'</div></div>'+
  '<div class="form"><button onclick="backup()">💾 Backup Data</button><br><br><button onclick="document.getElementById(\'restore\').click()">♻️ Restore Backup</button><input id="restore" type="file" accept=".json" style="display:none" onchange="restore(this)"></div>'+
-'<div id="aquaGoogleDriveCard" class="form" style="padding:16px;border-radius:16px;background:#f0fdf4;border:1px solid #bbf7d0;"> <div style="font-size:18px;font-weight:800;color:#166534;">☁️ Google Drive Backup</div> <div style="font-size:13px;color:#475569;margin:7px 0 12px;">पहली बार नीचे दिए बटन से Google Login / Connect करें। उसके बाद रोज़ का backup automatic Google Drive में जाएगा।</div> <button onclick="aquaGoogleLogin()" style="width:100%;padding:12px;border:0;border-radius:12px;background:#16a34a;color:white;font-size:15px;font-weight:800;margin-bottom:10px;">🔐 Google Login / Connect</button> <div id="aquaDriveCardStatus" style="font-size:13px;font-weight:700;color:#166534;">🟢 Automatic Backup Enabled</div></div>';
+'<div id="aquaGoogleDriveCard" class="form" style="padding:16px;border-radius:16px;background:#f0fdf4;border:1px solid #bbf7d0;"> <div style="font-size:18px;font-weight:800;color:#166534;">☁️ Google Drive Backup</div> <div style="font-size:13px;color:#475569;margin:7px 0 12px;">पहली बार नीचे दिए बटन से Google Login / Connect करें। उसके बाद रोज़ का backup automatic Google Drive में जाएगा।</div> <button onclick="aquaGoogleLoginAndBackup()" style="width:100%;padding:12px;border:0;border-radius:12px;background:#16a34a;color:white;font-size:15px;font-weight:800;margin-bottom:10px;">☁️ Google Login / Backup</button> <div id="aquaDriveCardStatus" style="font-size:13px;font-weight:700;color:#166534;">🟢 Automatic Backup Enabled</div></div>';
 }
 function dueList(){
  var arr=[],q=String(window._dueCustomerSearch||"").toLowerCase().trim();
@@ -793,13 +793,17 @@ function aquaDriveCheckStatus(silent){
     return res;
   }).catch(function(err){aquaDriveSetStatus("error","Backup Not Synced");if(!silent)console.error("Google Drive status:",err);throw err;});
 }
-function aquaGoogleLogin(){
+function aquaGoogleLoginAndBackup(){
   var url=AQUA_BACKUP_WEB_APP_URL;
+  /* First open the Google/App-Script login/authorization page. */
   try{
     var w=window.open(url,"_blank");
     if(!w) window.location.href=url;
-    setTimeout(function(){aquaDriveCheckStatus(true).catch(function(){});},2500);
-  }catch(e){window.location.href=url;}
+  }catch(e){}
+  /* Then do the same manual Drive backup that the old Sync Now button did. */
+  setTimeout(function(){
+    try{ aquaDriveBackup(); }catch(e){ console.error("Google Drive manual backup:",e); }
+  },3500);
 }
 function aquaDriveBackup(){
   if(!AQUA_BACKUP_WEB_APP_URL||AQUA_BACKUP_WEB_APP_URL.indexOf("/exec")===-1){aquaDriveSetStatus("error","Backup Not Synced");alert("Google Drive backup URL set nahi hai.");return;}
