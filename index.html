@@ -795,15 +795,24 @@ function aquaDriveCheckStatus(silent){
 }
 function aquaGoogleLoginAndBackup(){
   var url=AQUA_BACKUP_WEB_APP_URL;
-  /* First open the Google/App-Script login/authorization page. */
-  try{
-    var w=window.open(url,"_blank");
-    if(!w) window.location.href=url;
-  }catch(e){}
-  /* Then do the same manual Drive backup that the old Sync Now button did. */
-  setTimeout(function(){
-    try{ aquaDriveBackup(); }catch(e){ console.error("Google Drive manual backup:",e); }
-  },3500);
+  /* If Drive is already connected, do the backup directly without opening another page. */
+  aquaDriveCheckStatus(true).then(function(){
+    aquaDriveSetStatus("syncing","Manual backup Google Drive par ja raha hai...");
+    setTimeout(function(){
+      try{ aquaDriveBackup(); }catch(e){ aquaDriveSetStatus("error","Backup Not Synced"); }
+    },300);
+  }).catch(function(){
+    /* First-time setup: open the Google authorization/connection page. */
+    try{
+      var w=window.open(url,"_blank");
+      if(!w) window.location.href=url;
+    }catch(e){}
+    aquaDriveSetStatus("syncing","Google Login / Connect required...");
+    /* After connection, attempt the same manual backup as the old Sync Now button. */
+    setTimeout(function(){
+      try{ aquaDriveBackup(); }catch(e){ aquaDriveSetStatus("error","Backup Not Synced"); }
+    },5000);
+  });
 }
 function aquaDriveBackup(){
   if(!AQUA_BACKUP_WEB_APP_URL||AQUA_BACKUP_WEB_APP_URL.indexOf("/exec")===-1){aquaDriveSetStatus("error","Backup Not Synced");alert("Google Drive backup URL set nahi hai.");return;}
