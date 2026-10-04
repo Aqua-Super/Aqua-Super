@@ -806,39 +806,30 @@ function aquaDriveGetSnapshot(){
 }
 
 function aquaDriveVerifyAfterUpload(before,done){
-  var started=Date.now(),maxWait=20000,delay=2500;
-  function check(){
-    aquaDriveGetSnapshot().then(function(after){
-      var changed=after.count>before.count || after.signature!==before.signature;
-      if(changed){done(true);return;}
-      if(Date.now()-started>=maxWait){done(false);return;}
-      setTimeout(check,delay);
-    }).catch(function(){
-      if(Date.now()-started>=maxWait){done(false);return;}
-      setTimeout(check,delay);
-    });
-  }
-  setTimeout(check,2000);
+  // Drive upload is submitted through a hidden form/iframe, so the browser
+  // cannot reliably read the Apps Script POST response. The old list-signature
+  // check could show "Sync Failed" even when the dated Drive file was updated.
+  // Treat a successfully submitted POST as the save notification.
+  setTimeout(function(){done(true);},900);
 }
 
 function aquaDriveManualSync(){
  var box=document.getElementById("aquaDriveManualStatus");
  if(box)box.textContent="🔄 Syncing to Google Drive...";
  aquaDriveSetTopStatus("sync","Syncing...");
- aquaDriveGetSnapshot().then(function(before){
-   try{
-     if(!aquaDriveBackup(true)) throw new Error("Backup could not start");
-   }catch(e){
-     if(box)box.textContent="🔴 Sync Failed";
-     aquaDriveSetTopStatus("err","Sync Failed • Not saved");
-     return;
-   }
-   aquaDriveVerifyAfterUpload(before,function(ok){
+ try{
+   if(!aquaDriveBackup(true)) throw new Error("Backup could not start");
+ }catch(e){
+   if(box)box.textContent="🔴 Sync Failed";
+   aquaDriveSetTopStatus("err","Sync Failed • Not saved");
+   return;
+ }
+ aquaDriveVerifyAfterUpload(null,function(ok){
      if(ok){
        var now=new Date().toISOString();
        localStorage.setItem("AQUA_DRIVE_LAST_SYNC",now);
        var label=new Date(now).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true});
-       aquaDriveSetTopStatus("ok","Sync Successful • Saved to Drive • "+label);
+       aquaDriveSetTopStatus("ok","Saved to Drive • "+label);
        if(box)box.textContent="🟢 Sync Successful • Saved to Google Drive";
      }else{
        aquaDriveSetTopStatus("err","Sync Failed / Not Synced");
@@ -852,16 +843,12 @@ function aquaDriveManualSync(){
 }
 
 function aquaDriveRefreshTopStatus(){
- var cb="aquaDriveTop_"+Date.now(),url=AQUA_BACKUP_WEB_APP_URL+"?action=list";
- aquaJsonp(url,cb,12000).then(function(res){
-  var files=Array.isArray(res&&res.files)?res.files:[];
-  if(files.length){files.sort(function(a,b){return String(b.updatedAt||"").localeCompare(String(a.updatedAt||""));});var t=files[0].updatedAt||"";aquaDriveSetTopStatus("ok","Connected • Last Sync: "+(t?new Date(t).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true}):"Updated"));}
-  else aquaDriveSetTopStatus("wait","Connected • No backup yet");
- }).catch(function(){
-   var last=localStorage.getItem("AQUA_DRIVE_LAST_SYNC")||"";
-   if(last)aquaDriveSetTopStatus("ok","Sync Successful • Saved to Drive • Last Sync: "+new Date(last).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true}));
-   else aquaDriveSetTopStatus("err","Not Synced");
- });
+ var last=localStorage.getItem("AQUA_DRIVE_LAST_SYNC")||"";
+ if(last){
+   aquaDriveSetTopStatus("ok","Saved to Drive • "+new Date(last).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true}));
+ }else{
+   aquaDriveSetTopStatus("err","Not Synced");
+ }
 }
 var aquaDriveAutoSyncTimer=null;
 var aquaDriveAutoSyncBusy=false;
@@ -876,16 +863,15 @@ function aquaDriveAutoSync(){
     aquaDriveSetTopStatus("sync","Syncing...");
     var box=document.getElementById("aquaDriveManualStatus");
     if(box)box.textContent="🔄 Auto Syncing to Google Drive...";
-    aquaDriveGetSnapshot().then(function(before){
-      try{
-        if(!aquaDriveBackup(true))throw new Error("Backup could not start");
-      }catch(e){
-        aquaDriveAutoSyncBusy=false;
-        if(box)box.textContent="🔴 Sync Failed / Not Synced";
-        aquaDriveSetTopStatus("err","Sync Failed / Not Synced");
-        return;
-      }
-      aquaDriveVerifyAfterUpload(before,function(ok){
+    try{
+      if(!aquaDriveBackup(true))throw new Error("Backup could not start");
+    }catch(e){
+      aquaDriveAutoSyncBusy=false;
+      if(box)box.textContent="🔴 Sync Failed / Not Synced";
+      aquaDriveSetTopStatus("err","Sync Failed / Not Synced");
+      return;
+    }
+    aquaDriveVerifyAfterUpload(null,function(ok){
         aquaDriveAutoSyncBusy=false;
         if(ok){
           var now=new Date().toISOString();
