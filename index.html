@@ -74,7 +74,7 @@ function aquaPaymentReminder(customer){
 <link rel="apple-touch-icon" href="icon-192.png">
 <style id="aqua-direct-notes-style">.aqua-notes-wrap{margin:0 0 14px;padding:14px 12px 18px;background:#fff}.aqua-notes-title{font-size:22px;font-weight:800;color:#17324d}.aqua-notes-sub{font-size:13px;color:#64748b;margin:6px 0 12px}.aqua-notes-text{width:100%;min-height:150px;padding:13px;border:1px solid #ccd8e3;border-radius:12px;font-size:16px;box-sizing:border-box}.aqua-notes-actions,.aqua-note-btns{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0}.aqua-note-wa{background:#16a34a!important}.aqua-note-sms{background:#2563eb!important}.aqua-note-customer{padding:13px 0;border-bottom:1px solid #e5edf3}.aqua-note-name{font-size:17px;font-weight:800}.aqua-note-phone{font-size:12px;color:#64748b;margin-top:3px}.aqua-note-btns button{font-size:13px;padding:11px 5px}.aqua-notes-search-wrap{padding:0 12px 10px;background:#fff}.aqua-notes-search{width:100%;padding:12px 14px;border:1px solid #ccd8e3;border-radius:10px;font-size:15px;box-sizing:border-box}.aqua-notes-noresult{padding:10px 0;color:#64748b}@media(max-width:360px){.aqua-notes-actions,.aqua-note-btns{grid-template-columns:1fr}}</style></head>
 <body>
-<div class="top"><h1>💧 Aqua Super</h1><p id="today"></p></div><button id="aquaInstallBtn" type="button" style="display:none!important" aria-hidden="true">📲 Install App</button>
+<div class="top"><h1>💧 Aqua Super</h1><p id="today"></p><div id="aquaDriveTopStatus" style="margin-top:8px;padding:7px 10px;border-radius:10px;background:#eff6ff;color:#075985;font-size:12px;font-weight:700;display:inline-block;">☁️ Drive: Checking...</div></div><button id="aquaInstallBtn" type="button" style="display:none!important" aria-hidden="true">📲 Install App</button>
 <main id="main"></main>
 <nav>
 <button id="nHome" onclick="go('home')">🏠<br/>Home</button>
@@ -191,13 +191,7 @@ function home(){
  '<div class="btns"><button onclick="go(\'customers\')">👤 Add / Search Customer</button><button onclick="go(\'entry\')">➕ New Daily Entry</button></div>'+
  '<div class="form"><h2>🔴 Customers With Due</h2><div style="margin:10px 0 12px"><input id="dueCustomerSearch" type="search" placeholder="🔎 Customer name ya mobile number search karein..." oninput="filterDueCustomers(this.value)" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;background:#fff"></div><div id="dueList">'+dueList()+'</div></div>'+
  '<div class="form"><button onclick="backup()">💾 Backup Data</button><br><br><button onclick="document.getElementById(\'restore\').click()">♻️ Restore Backup</button><input id="restore" type="file" accept=".json" style="display:none" onchange="restore(this)"></div>'+
-'<div id="aquaGoogleDriveCard" class="form" style="padding:16px;border-radius:16px;background:#f0fdf4;border:1px solid #bbf7d0;">'+
- '<div style="font-size:18px;font-weight:800;color:#166534;">☁️ Google Drive Backup</div>'+
- '<div id="aquaDriveSyncStatus" style="margin:10px 0 12px;padding:11px 12px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px;font-weight:700;">🔴 Backup Not Synced</div>'+
- '<div id="aquaDriveLastSync" style="font-size:12px;color:#64748b;margin-bottom:10px;">Last successful backup: Not available</div>'+
- '<button onclick="aquaDriveBackup()" style="width:100%;padding:13px;border:0;border-radius:12px;background:#16a34a;color:white;font-size:16px;font-weight:800;">☁️ Sync Now</button>'+
- '</div>'+
- '';
+'
 }
 function dueList(){
  var arr=[],q=String(window._dueCustomerSearch||"").toLowerCase().trim();
@@ -781,11 +775,12 @@ function aquaDriveFormatTime(iso){
   try{var d=new Date(iso);if(isNaN(d.getTime()))return String(iso||"");return d.toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:true});}catch(e){return String(iso||"");}
 }
 function aquaDriveSetStatus(state,message,last){
-  var box=document.getElementById("aquaDriveSyncStatus"),lastBox=document.getElementById("aquaDriveLastSync");
+  var box=document.getElementById("aquaDriveTopStatus");
   if(!box)return;
-  var styles={syncing:["#eff6ff","#075985","🔄 "+message],success:["#f0fdf4","#166534","🟢 "+message],error:["#fef2f2","#b91c1c","🔴 "+message],empty:["#fffbeb","#92400e","🟠 "+message]};
-  var s=styles[state]||styles.error;box.style.background=s[0];box.style.color=s[1];box.textContent=s[2];
-  if(lastBox){var value=last||localStorage.getItem(AQUA_DRIVE_LAST_SYNC_KEY);lastBox.textContent="Last successful backup: "+(value?aquaDriveFormatTime(value):"Not available");}
+  var styles={syncing:["#eff6ff","#075985","🔄 Drive: "+message],success:["#f0fdf4","#166534","🟢 Drive: "+message],error:["#fef2f2","#b91c1c","🔴 Drive: "+message],empty:["#fffbeb","#92400e","🟠 Drive: "+message]};
+  var s=styles[state]||styles.error;box.style.background=s[0];box.style.color=s[1];
+  var value=last||localStorage.getItem(AQUA_DRIVE_LAST_SYNC_KEY);
+  box.textContent=s[2]+(value?" • "+aquaDriveFormatTime(value):"");
 }
 function aquaDriveCheckStatus(silent){
   var cb="aquaDriveStatus_"+Date.now(),url=AQUA_BACKUP_WEB_APP_URL+"?action=list";
@@ -812,7 +807,10 @@ function aquaDriveBackup(){
     if(found||files.length){var now=new Date().toISOString();localStorage.setItem(AQUA_DRIVE_LAST_SYNC_KEY,now);aquaDriveSetStatus("success","Drive Synced",now);}else aquaDriveSetStatus("error","Backup Not Synced");
   }).catch(function(){});},3500);
 }
-document.addEventListener("DOMContentLoaded",function(){setTimeout(function(){aquaDriveCheckStatus(true).catch(function(){});},1200);});
+document.addEventListener("DOMContentLoaded",function(){
+  setTimeout(function(){aquaDriveCheckStatus(true).catch(function(){});},1200);
+  setInterval(function(){aquaDriveCheckStatus(true).catch(function(){});},60000);
+});
 
 /* Aqua Super - Google Drive Restore */
 function aquaJsonp(url, callbackName, timeoutMs){
