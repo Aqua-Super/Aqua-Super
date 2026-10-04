@@ -788,7 +788,10 @@ function aquaDriveManualSync(){
  var box=document.getElementById("aquaDriveManualStatus");if(box)box.textContent="🔄 Syncing to Google Drive...";
  aquaDriveSetTopStatus("sync","Syncing...");
  try{aquaDriveBackup();}catch(e){if(box)box.textContent="🔴 Sync Failed";aquaDriveSetTopStatus("err","Sync Failed");return;}
- setTimeout(function(){if(box)box.textContent="🟢 Sync request sent to Google Drive";aquaDriveSetTopStatus("ok","Sync Updated");},1200);
+ setTimeout(function(){
+   if(box)box.textContent="🟢 Sync Updated";
+   aquaDriveRefreshTopStatus();
+ },2500);
 }
 function aquaDriveRefreshTopStatus(){
  var cb="aquaDriveTop_"+Date.now(),url=AQUA_BACKUP_WEB_APP_URL+"?action=list";
