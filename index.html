@@ -787,16 +787,68 @@ function aquaDriveSetTopStatus(state,message){
  var m={sync:["#eff6ff","#075985","🔄 Google Drive: "+message],ok:["#f0fdf4","#166534","🟢 Google Drive: "+message],err:["#fef2f2","#b91c1c","🔴 Google Drive: "+message],wait:["#fffbeb","#92400e","🟠 Google Drive: "+message]};
  var x=m[state]||m.wait;box.style.background=x[0];box.style.color=x[1];box.textContent=x[2];
 }
-function aquaDriveManualSync(){
- var box=document.getElementById("aquaDriveManualStatus");if(box)box.textContent="🔄 Syncing to Google Drive...";
- aquaDriveSetTopStatus("sync","Syncing...");
- try{aquaDriveBackup(true);}catch(e){if(box)box.textContent="🔴 Sync Failed";aquaDriveSetTopStatus("err","Sync Failed");return;}
- setTimeout(function(){
-   localStorage.setItem("AQUA_DRIVE_LAST_SYNC",new Date().toISOString());
-   aquaDriveSetTopStatus("ok","Sync Updated • Last Sync: "+new Date().toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true}));
-   if(box)box.textContent="🟢 Sync Updated";
- },4000);
+function aquaDriveGetSnapshot(){
+  return new Promise(function(resolve,reject){
+    if(!AQUA_BACKUP_WEB_APP_URL || AQUA_BACKUP_WEB_APP_URL.indexOf("/exec")===-1){
+      reject(new Error("Google Drive Web App URL missing"));
+      return;
+    }
+    var cb="aquaDriveVerify_"+Date.now()+"_"+Math.floor(Math.random()*10000);
+    aquaJsonp(AQUA_BACKUP_WEB_APP_URL+"?action=list",cb,12000).then(function(res){
+      if(!res || res.success===false) throw new Error(res && res.error ? res.error : "Drive list unavailable");
+      var files=Array.isArray(res.files)?res.files:[];
+      var sig=files.map(function(f){return String(f.id||"")+"|"+String(f.name||"")+"|"+String(f.updatedAt||"");}).sort().join("||");
+      resolve({count:files.length,signature:sig});
+    }).catch(reject);
+  });
 }
+
+function aquaDriveVerifyAfterUpload(before,done){
+  var started=Date.now(),maxWait=20000,delay=2500;
+  function check(){
+    aquaDriveGetSnapshot().then(function(after){
+      var changed=after.count>before.count || after.signature!==before.signature;
+      if(changed){done(true);return;}
+      if(Date.now()-started>=maxWait){done(false);return;}
+      setTimeout(check,delay);
+    }).catch(function(){
+      if(Date.now()-started>=maxWait){done(false);return;}
+      setTimeout(check,delay);
+    });
+  }
+  setTimeout(check,2000);
+}
+
+function aquaDriveManualSync(){
+ var box=document.getElementById("aquaDriveManualStatus");
+ if(box)box.textContent="🔄 Syncing to Google Drive...";
+ aquaDriveSetTopStatus("sync","Syncing...");
+ aquaDriveGetSnapshot().then(function(before){
+   try{
+     if(!aquaDriveBackup(true)) throw new Error("Backup could not start");
+   }catch(e){
+     if(box)box.textContent="🔴 Sync Failed";
+     aquaDriveSetTopStatus("err","Sync Failed • Not saved");
+     return;
+   }
+   aquaDriveVerifyAfterUpload(before,function(ok){
+     if(ok){
+       var now=new Date().toISOString();
+       localStorage.setItem("AQUA_DRIVE_LAST_SYNC",now);
+       var label=new Date(now).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true});
+       aquaDriveSetTopStatus("ok","Sync Successful • Saved to Drive • "+label);
+       if(box)box.textContent="🟢 Sync Successful • Saved to Google Drive";
+     }else{
+       aquaDriveSetTopStatus("err","Sync Failed / Not Synced");
+       if(box)box.textContent="🔴 Sync Failed / Not Synced";
+     }
+   });
+ }).catch(function(){
+   if(box)box.textContent="🔴 Sync Failed";
+   aquaDriveSetTopStatus("err","Not Synced • Drive check failed");
+ });
+}
+
 function aquaDriveRefreshTopStatus(){
  var cb="aquaDriveTop_"+Date.now(),url=AQUA_BACKUP_WEB_APP_URL+"?action=list";
  aquaJsonp(url,cb,12000).then(function(res){
@@ -805,11 +857,13 @@ function aquaDriveRefreshTopStatus(){
   else aquaDriveSetTopStatus("wait","Connected • No backup yet");
  }).catch(function(){
    var last=localStorage.getItem("AQUA_DRIVE_LAST_SYNC")||"";
-   if(last)aquaDriveSetTopStatus("ok","Sync Updated • Last Sync: "+new Date(last).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true}));
+   if(last)aquaDriveSetTopStatus("ok","Sync Successful • Saved to Drive • Last Sync: "+new Date(last).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true}));
    else aquaDriveSetTopStatus("err","Not Synced");
  });
 }
 var aquaDriveAutoSyncTimer=null;
+var aquaDriveAutoSyncBusy=false;
+
 var aquaDriveAutoSyncBusy=false;
 function aquaDriveAutoSync(){
   if(aquaDriveAutoSyncTimer)clearTimeout(aquaDriveAutoSyncTimer);
