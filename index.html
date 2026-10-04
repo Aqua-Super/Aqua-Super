@@ -128,7 +128,7 @@ function normalizeDB(){
  db.entries.forEach(function(e){e.jg=Number(e.jg)||0;e.je=Number(e.je)||0;e.cg=Number(e.cg)||0;e.ce=Number(e.ce)||0;e.amount=Number(e.amount)||0;e.paid=Number(e.paid)||0;});
 }
 normalizeDB();
-function save(){localStorage.setItem(KEY,JSON.stringify(db));try{setTimeout(function(){if(typeof aquaSaveDailyBackup==="function")aquaSaveDailyBackup();},50)}catch(e){}}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));try{setTimeout(function(){if(typeof aquaSaveDailyBackup==="function")aquaSaveDailyBackup();},50)}catch(e){} try{aquaDriveAutoSync();}catch(e){}}
 function money(n){return "₹"+(Number(n)||0).toLocaleString("en-IN")}
 function dateNow(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 var dashboardDate=dateNow();
@@ -788,11 +788,11 @@ function aquaDriveSetTopStatus(state,message){
 function aquaDriveManualSync(){
  var box=document.getElementById("aquaDriveManualStatus");if(box)box.textContent="🔄 Syncing to Google Drive...";
  aquaDriveSetTopStatus("sync","Syncing...");
- try{aquaDriveBackup();}catch(e){if(box)box.textContent="🔴 Sync Failed";aquaDriveSetTopStatus("err","Sync Failed");return;}
+ try{aquaDriveBackup(true);}catch(e){if(box)box.textContent="🔴 Sync Failed";aquaDriveSetTopStatus("err","Sync Failed");return;}
  setTimeout(function(){
    if(box)box.textContent="🟢 Sync Updated";
    aquaDriveRefreshTopStatus();
- },2500);
+ },4000);
 }
 function aquaDriveRefreshTopStatus(){
  var cb="aquaDriveTop_"+Date.now(),url=AQUA_BACKUP_WEB_APP_URL+"?action=list";
@@ -802,10 +802,37 @@ function aquaDriveRefreshTopStatus(){
   else aquaDriveSetTopStatus("wait","Connected • No backup yet");
  }).catch(function(){aquaDriveSetTopStatus("err","Not Synced");});
 }
-function aquaDriveBackup(){
+var aquaDriveAutoSyncTimer=null;
+var aquaDriveAutoSyncBusy=false;
+function aquaDriveAutoSync(){
+  if(aquaDriveAutoSyncTimer)clearTimeout(aquaDriveAutoSyncTimer);
+  aquaDriveAutoSyncTimer=setTimeout(function(){
+    aquaDriveAutoSyncTimer=null;
+    if(aquaDriveAutoSyncBusy)return;
+    aquaDriveAutoSyncBusy=true;
+    aquaDriveSetTopStatus("sync","Syncing...");
+    var box=document.getElementById("aquaDriveManualStatus");
+    if(box)box.textContent="🔄 Auto Syncing to Google Drive...";
+    try{aquaDriveBackup(true);}catch(e){
+      aquaDriveAutoSyncBusy=false;
+      if(box)box.textContent="🔴 Sync Failed";
+      aquaDriveSetTopStatus("err","Sync Failed");
+      return;
+    }
+    setTimeout(function(){
+      aquaDriveAutoSyncBusy=false;
+      aquaDriveRefreshTopStatus();
+      var b=document.getElementById("aquaDriveManualStatus");
+      if(b)b.textContent="🟢 Sync Updated";
+    },4000);
+  },1200);
+}
+
+function aquaDriveBackup(silent){
   if(!AQUA_BACKUP_WEB_APP_URL || AQUA_BACKUP_WEB_APP_URL.indexOf("/exec")===-1){
-    alert("Pehle Google Apps Script ka Web App /exec URL HTML mein set karein.");
-    return;
+    if(!silent)alert("Pehle Google Apps Script ka Web App /exec URL HTML mein set karein.");
+    aquaDriveSetTopStatus("err","Not Synced");
+    return false;
   }
 
   var d=new Date();
@@ -813,14 +840,14 @@ function aquaDriveBackup(){
   var payload=JSON.stringify(db);
 
   var iframe=document.createElement("iframe");
-  iframe.name="aquaBackupFrame";
+  iframe.name="aquaBackupFrame_"+Date.now();
   iframe.style.display="none";
   document.body.appendChild(iframe);
 
   var form=document.createElement("form");
   form.method="POST";
   form.action=AQUA_BACKUP_WEB_APP_URL;
-  form.target="aquaBackupFrame";
+  form.target=iframe.name;
   form.style.display="none";
 
   var data=document.createElement("input");
@@ -835,9 +862,10 @@ function aquaDriveBackup(){
 
   document.body.appendChild(form);
   form.submit();
-  setTimeout(function(){ form.remove(); iframe.remove(); },5000);
+  setTimeout(function(){try{form.remove();iframe.remove()}catch(e){}},5000);
 
-  alert("Backup Google Drive par bhej diya gaya.\n\nFile: Aqua Super Daily Backup Data - "+date+".json");
+  if(!silent)alert("Backup Google Drive par bhej diya gaya.\n\nFile: Aqua Super Daily Backup Data - "+date+".json");
+  return true;
 }
 
 
