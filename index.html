@@ -32,10 +32,6 @@ hr{border:0;border-top:1px solid #e5edf3;margin:16px 0}
 #aquaInstallBtn{display:none!important}
 #aquaInstallBtn{display:none!important}
 #aquaInstallBtn{display:none!important}
-#aquaInstallBtn{display:none!important}
-#aquaInstallBtn{display:none!important}
-#aquaInstallBtn{display:none!important}
-#aquaInstallBtn{display:none!important}
 </style>
 
 <script>
@@ -191,11 +187,10 @@ function home(){
  '<div class="btns"><button onclick="go(\'customers\')">👤 Add / Search Customer</button><button onclick="go(\'entry\')">➕ New Daily Entry</button></div>'+
  '<div class="form"><h2>🔴 Customers With Due</h2><div style="margin:10px 0 12px"><input id="dueCustomerSearch" type="search" placeholder="🔎 Customer name ya mobile number search karein..." oninput="filterDueCustomers(this.value)" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;background:#fff"></div><div id="dueList">'+dueList()+'</div></div>'+
  '<div class="form"><button onclick="backup()">💾 Backup Data</button><br><br><button onclick="document.getElementById(\'restore\').click()">♻️ Restore Backup</button><input id="restore" type="file" accept=".json" style="display:none" onchange="restore(this)"></div>'+
-'<div id="aquaGoogleDriveCard" class="form" style="padding:16px;border-radius:16px;background:#f0fdf4;border:1px solid #bbf7d0;">'+
+ '<div id="aquaGoogleDriveCard" class="form" style="padding:16px;border-radius:16px;background:#f0fdf4;border:1px solid #bbf7d0;">'+
  '<div style="font-size:18px;font-weight:800;color:#166534;">☁️ Google Drive Backup</div>'+
- '<div id="aquaDriveSyncStatus" style="margin:10px 0 12px;padding:11px 12px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px;font-weight:700;">🔴 Backup Not Synced</div>'+
- '<div id="aquaDriveLastSync" style="font-size:12px;color:#64748b;margin-bottom:10px;">Last successful backup: Not available</div>'+
- '<button onclick="aquaDriveBackup()" style="width:100%;padding:13px;border:0;border-radius:12px;background:#16a34a;color:white;font-size:16px;font-weight:800;">☁️ Sync Now</button>'+
+ '<div style="font-size:13px;color:#475569;margin:7px 0 12px;">पहली बार Google Login करें। उसके बाद रोज़ यहीं से backup सीधे Google Drive में जाएगा।</div>'+
+ '<button onclick="aquaDriveBackup()" style="width:100%;padding:13px;border:0;border-radius:12px;background:#16a34a;color:white;font-size:16px;font-weight:800;">☁️ Google Login / Backup</button>'+
  '</div>'+
  '';
 }
@@ -773,46 +768,48 @@ document.addEventListener("DOMContentLoaded",function(){
 });
 
 
-/* Aqua Super - Google Drive Backup and Sync Status */
+/* Aqua Super - Google Drive Backup from local HTML */
 const AQUA_BACKUP_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyY8uZ9Grv6CzqjDth4j1jUd3r3JOFfm5lV60QuH8JPNRjqZhhOEgBSA9yMB3wosCz6/exec";
-const AQUA_DRIVE_LAST_SYNC_KEY = "AQUA_DRIVE_LAST_SUCCESS_V2";
 
-function aquaDriveFormatTime(iso){
-  try{var d=new Date(iso);if(isNaN(d.getTime()))return String(iso||"");return d.toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:true});}catch(e){return String(iso||"");}
-}
-function aquaDriveSetStatus(state,message,last){
-  var box=document.getElementById("aquaDriveSyncStatus"),lastBox=document.getElementById("aquaDriveLastSync");
-  if(!box)return;
-  var styles={syncing:["#eff6ff","#075985","🔄 "+message],success:["#f0fdf4","#166534","🟢 "+message],error:["#fef2f2","#b91c1c","🔴 "+message],empty:["#fffbeb","#92400e","🟠 "+message]};
-  var s=styles[state]||styles.error;box.style.background=s[0];box.style.color=s[1];box.textContent=s[2];
-  if(lastBox){var value=last||localStorage.getItem(AQUA_DRIVE_LAST_SYNC_KEY);lastBox.textContent="Last successful backup: "+(value?aquaDriveFormatTime(value):"Not available");}
-}
-function aquaDriveCheckStatus(silent){
-  var cb="aquaDriveStatus_"+Date.now(),url=AQUA_BACKUP_WEB_APP_URL+"?action=list";
-  if(!silent)aquaDriveSetStatus("syncing","Checking Google Drive...");
-  return aquaJsonp(url,cb,15000).then(function(res){
-    if(!res||!res.success)throw new Error(res&&res.error?res.error:"Google Drive response invalid");
-    var files=Array.isArray(res.files)?res.files:[],last=localStorage.getItem(AQUA_DRIVE_LAST_SYNC_KEY);
-    if(!last&&files.length){var newest=files.slice().sort(function(x,y){return String(y.updatedAt||"").localeCompare(String(x.updatedAt||""));})[0];last=newest.updatedAt||"";if(last)localStorage.setItem(AQUA_DRIVE_LAST_SYNC_KEY,last);}
-    if(last)aquaDriveSetStatus("success","Drive Synced",last);else if(files.length)aquaDriveSetStatus("success","Drive Synced",files[0].updatedAt||"");else aquaDriveSetStatus("empty","Drive Connected • No backup yet");
-    return res;
-  }).catch(function(err){aquaDriveSetStatus("error","Backup Not Synced");if(!silent)console.error("Google Drive status:",err);throw err;});
-}
 function aquaDriveBackup(){
-  if(!AQUA_BACKUP_WEB_APP_URL||AQUA_BACKUP_WEB_APP_URL.indexOf("/exec")===-1){aquaDriveSetStatus("error","Backup Not Synced");alert("Google Drive backup URL set nahi hai.");return;}
-  var d=new Date(),date=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),payload=JSON.stringify(db);
-  aquaDriveSetStatus("syncing","Backup Google Drive par sync ho raha hai...");
-  try{if(typeof aquaSaveDailyBackup==="function")aquaSaveDailyBackup();}catch(e){}
-  var iframe=document.createElement("iframe");iframe.name="aquaBackupFrame_"+Date.now();iframe.style.display="none";document.body.appendChild(iframe);
-  var form=document.createElement("form");form.method="POST";form.action=AQUA_BACKUP_WEB_APP_URL;form.target=iframe.name;form.style.display="none";
-  [["data",payload],["date",date],["mode","manual"]].forEach(function(pair){var input=document.createElement("input");input.name=pair[0];input.value=pair[1];form.appendChild(input);});
-  document.body.appendChild(form);form.submit();
-  setTimeout(function(){try{form.remove();iframe.remove();}catch(e){} aquaDriveCheckStatus(false).then(function(res){
-    var files=Array.isArray(res.files)?res.files:[],found=files.some(function(f){return String(f.name||"").indexOf(date)>=0||String(f.updatedAt||"").indexOf(date)>=0;});
-    if(found||files.length){var now=new Date().toISOString();localStorage.setItem(AQUA_DRIVE_LAST_SYNC_KEY,now);aquaDriveSetStatus("success","Drive Synced",now);}else aquaDriveSetStatus("error","Backup Not Synced");
-  }).catch(function(){});},3500);
+  if(!AQUA_BACKUP_WEB_APP_URL || AQUA_BACKUP_WEB_APP_URL.indexOf("/exec")===-1){
+    alert("Pehle Google Apps Script ka Web App /exec URL HTML mein set karein.");
+    return;
+  }
+
+  var d=new Date();
+  var date=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  var payload=JSON.stringify(db);
+
+  var iframe=document.createElement("iframe");
+  iframe.name="aquaBackupFrame";
+  iframe.style.display="none";
+  document.body.appendChild(iframe);
+
+  var form=document.createElement("form");
+  form.method="POST";
+  form.action=AQUA_BACKUP_WEB_APP_URL;
+  form.target="aquaBackupFrame";
+  form.style.display="none";
+
+  var data=document.createElement("input");
+  data.name="data";
+  data.value=payload;
+  form.appendChild(data);
+
+  var dateInput=document.createElement("input");
+  dateInput.name="date";
+  dateInput.value=date;
+  form.appendChild(dateInput);
+
+  document.body.appendChild(form);
+  form.submit();
+  setTimeout(function(){ form.remove(); iframe.remove(); },5000);
+
+  alert("Backup Google Drive par bhej diya gaya.\n\nFile: Aqua Super Daily Backup Data - "+date+".json");
 }
-document.addEventListener("DOMContentLoaded",function(){setTimeout(function(){aquaDriveCheckStatus(true).catch(function(){});},1200);});
+
+
 
 /* Aqua Super - Google Drive Restore */
 function aquaJsonp(url, callbackName, timeoutMs){
