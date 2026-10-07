@@ -731,7 +731,7 @@ function sendWA(e,c){
 function closeWAPreview(){document.getElementById("waModal").style.display="none";pendingWA=null}
 function confirmWASend(){
  if(!pendingWA)return;
- var text=encodeURIComponent(pendingWA.reminder ? paymentReminderMessage(pendingWA.c) : message(pendingWA.e,pendingWA.c));
+ var text=encodeURIComponent(pendingWA.reminderText || (pendingWA.reminder ? paymentReminderMessage(pendingWA.c) : message(pendingWA.e,pendingWA.c)));
  var phone=pendingWA.phone;
  document.getElementById("waModal").style.display="none";
  var url="intent://send?phone="+phone+"&text="+text+"#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end";
