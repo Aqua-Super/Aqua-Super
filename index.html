@@ -1430,6 +1430,308 @@ function aquaImportOldBackup(){
   var oldGo=window.go;window.go=function(p){if(p==="notes"){window.aquaNotesRender();return}if(typeof oldGo==="function")oldGo(p)};
   try{var nav=document.querySelector("nav");if(nav){if(!nq("nNotes")){var b=document.createElement("button");b.id="nNotes";b.onclick=function(){go("notes")};b.innerHTML="📝<br/>Notes";nav.appendChild(b)}nav.style.gridTemplateColumns="repeat(6,1fr)"}}catch(e){}
 })();
-</script></body>
+</script><script id="aquaLiveSyncV1">
+(function(){
+  if(window.__AQUA_LIVE_SYNC_V1)return;
+  window.__AQUA_LIVE_SYNC_V1=true;
+
+  var LIVE_URL="https://script.google.com/macros/s/AKfycbzZjb-lr3pJHYuqmSZ1KcR12z6NzxqFcW9jVTs-SvrlnjW4HZyBjW7zrfWMJyJ1CSm8/exec";
+  var REV_KEY="AQUA_LIVE_SYNC_REVISION_V1";
+  var INIT_KEY="AQUA_LIVE_SYNC_INITIALIZED_V1";
+  var DEL_KEY="AQUA_LIVE_SYNC_TOMBSTONES_V1";
+  var busy=false,queued=false,pullBusy=false,pushTimer=null;
+
+  function clone(x){
+    try{return JSON.parse(JSON.stringify(x));}catch(e){return x;}
+  }
+
+  function uid(){
+    try{
+      if(window.crypto && typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();
+    }catch(e){}
+    return "aqua-"+Date.now()+"-"+Math.random().toString(36).slice(2)+"-"+Math.random().toString(36).slice(2);
+  }
+
+  function readJson(key,fallback){
+    try{
+      var x=JSON.parse(localStorage.getItem(key)||"");
+      return x&&typeof x==="object"?x:fallback;
+    }catch(e){return fallback;}
+  }
+
+  function writeLocal(){
+    try{
+      localStorage.setItem(KEY,JSON.stringify(db));
+      localStorage.setItem(REV_KEY,String(Number(window.__AQUA_LIVE_REVISION||0)));
+      localStorage.setItem(DEL_KEY,JSON.stringify(window.__AQUA_LIVE_DELETED||{deletedCustomers:{},deletedEntries:{}}));
+    }catch(e){}
+  }
+
+  function ensureClientIds(){
+    if(!db||typeof db!=="object")db={customers:[],entries:[]};
+    if(!Array.isArray(db.customers))db.customers=[];
+    if(!Array.isArray(db.entries))db.entries=[];
+
+    var byName={};
+    var byId={};
+
+    db.customers.forEach(function(c){
+      if(!c.syncId)c.syncId=uid();
+      byId[c.syncId]=c;
+      var n=String(c.name||"").trim().toLowerCase();
+      if(n && !byName[n])byName[n]=c;
+    });
+
+    db.entries.forEach(function(e){
+      if(!e.syncId)e.syncId=uid();
+
+      if(e.customerSyncId && byId[e.customerSyncId]){
+        e.name=byId[e.customerSyncId].name;
+      }else{
+        var n=String(e.name||"").trim().toLowerCase();
+        if(n && byName[n]){
+          e.customerSyncId=byName[n].syncId;
+          e.name=byName[n].name;
+        }
+      }
+    });
+  }
+
+  function readDeletes(){
+    var x=readJson(DEL_KEY,{deletedCustomers:{},deletedEntries:{}});
+    return {
+      deletedCustomers:x.deletedCustomers&&typeof x.deletedCustomers==="object"?x.deletedCustomers:{},
+      deletedEntries:x.deletedEntries&&typeof x.deletedEntries==="object"?x.deletedEntries:{}
+    };
+  }
+
+  window.__AQUA_LIVE_DELETED=readDeletes();
+  window.__AQUA_LIVE_REVISION=Number(localStorage.getItem(REV_KEY)||0)||0;
+
+  function aquaLiveJsonp(url,timeout){
+    return new Promise(function(resolve,reject){
+      var cb="aquaLiveCb_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+      var s=document.createElement("script");
+      var done=false;
+      var timer=setTimeout(function(){finish(new Error("Live Sync response timeout"));},timeout||30000);
+
+      function finish(err,data){
+        if(done)return;
+        done=true;
+        clearTimeout(timer);
+        try{delete window[cb];}catch(e){window[cb]=undefined;}
+        if(s.parentNode)s.parentNode.removeChild(s);
+        if(err)reject(err);else resolve(data);
+      }
+
+      window[cb]=function(data){finish(null,data);};
+      s.onerror=function(){finish(new Error("Live Sync request failed"));};
+      s.src=url+(url.indexOf("?")>=0?"&":"?")+"callback="+encodeURIComponent(cb)+"&_="+Date.now();
+      document.head.appendChild(s);
+    });
+  }
+
+  function applyMaster(res,forceReload){
+    if(!res || !res.db || !Array.isArray(res.db.customers) || !Array.isArray(res.db.entries)){
+      throw new Error("Live Master data invalid");
+    }
+
+    db=clone(res.db);
+    window.__AQUA_LIVE_REVISION=Number(res.revision||0)||0;
+    window.__AQUA_LIVE_DELETED={
+      deletedCustomers:res.meta&&res.meta.deletedCustomers||{},
+      deletedEntries:res.meta&&res.meta.deletedEntries||{}
+    };
+
+    ensureClientIds();
+    if(typeof normalizeDB==="function")normalizeDB();
+    writeLocal();
+
+    if(forceReload){
+      setTimeout(function(){location.reload();},250);
+      return;
+    }
+
+    try{
+      var activeId="";
+      ["nHome","nCust","nEntry","nLog","nHist"].some(function(id){
+        var el=document.getElementById(id);
+        if(el && el.className==="active"){activeId=id;return true;}
+        return false;
+      });
+
+      if(activeId==="nHome" && typeof home==="function")home();
+      else if(activeId==="nCust" && typeof customers==="function")customers();
+      else if(activeId==="nEntry" && typeof entry==="function")entry();
+      else if(activeId==="nLog" && typeof dailyLog==="function")dailyLog();
+      else if(activeId==="nHist" && typeof history==="function")history();
+    }catch(e){}
+  }
+
+  function aquaLivePull(forceReload){
+    if(pullBusy)return;
+    pullBusy=true;
+
+    aquaLiveJsonp(LIVE_URL+"?action=get",30000).then(function(res){
+      if(!res || res.ok===false)throw new Error(res&&res.error?res.error:"Live Master read failed");
+
+      var incoming=Number(res.revision||0)||0;
+      var current=Number(window.__AQUA_LIVE_REVISION||0)||0;
+
+      if(forceReload || incoming>current){
+        applyMaster(res,!!forceReload);
+      }else if(!localStorage.getItem(INIT_KEY)){
+        applyMaster(res,true);
+        return;
+      }
+    }).catch(function(err){
+      console.log("Aqua Live Sync pull:",err&&err.message||err);
+    }).finally(function(){
+      pullBusy=false;
+    });
+  }
+
+  function aquaLivePost(){
+    if(busy){
+      queued=true;
+      return;
+    }
+
+    busy=true;
+    queued=false;
+    ensureClientIds();
+    writeLocal();
+
+    var deleted=window.__AQUA_LIVE_DELETED||{deletedCustomers:{},deletedEntries:{}};
+    var payload=JSON.stringify({
+      db:db,
+      revision:Number(window.__AQUA_LIVE_REVISION||0)||0,
+      deletedCustomers:deleted.deletedCustomers||{},
+      deletedEntries:deleted.deletedEntries||{}
+    });
+
+    var iframe=document.createElement("iframe");
+    iframe.name="aquaLiveSyncFrame_"+Date.now();
+    iframe.style.display="none";
+    document.body.appendChild(iframe);
+
+    var form=document.createElement("form");
+    form.method="POST";
+    form.action=LIVE_URL;
+    form.target=iframe.name;
+    form.style.display="none";
+
+    var data=document.createElement("textarea");
+    data.name="data";
+    data.value=payload;
+    data.style.display="none";
+    form.appendChild(data);
+
+    document.body.appendChild(form);
+    try{form.submit();}catch(e){}
+
+    setTimeout(function(){
+      try{form.remove();iframe.remove();}catch(e){}
+
+      aquaLiveJsonp(LIVE_URL+"?action=get",30000).then(function(res){
+        if(!res || res.ok===false)throw new Error(res&&res.error?res.error:"Live Master read failed after save");
+
+        applyMaster(res,false);
+        try{
+          if(typeof aquaDriveBackup==="function")aquaDriveBackup(true);
+        }catch(e){}
+
+      }).catch(function(err){
+        console.log("Aqua Live Sync push/pull:",err&&err.message||err);
+      }).finally(function(){
+        busy=false;
+        if(queued){
+          clearTimeout(pushTimer);
+          pushTimer=setTimeout(aquaLivePost,150);
+        }
+      });
+    },2500);
+  }
+
+  function queuePush(){
+    if(busy){
+      queued=true;
+      return;
+    }
+    clearTimeout(pushTimer);
+    pushTimer=setTimeout(aquaLivePost,350);
+  }
+
+  function markCustomerDelete(){
+    try{
+      var c=arguments[0];
+      if(!c)return;
+      var t=Date.now();
+      if(c.syncId)window.__AQUA_LIVE_DELETED.deletedCustomers[c.syncId]=t;
+      (db.entries||[]).forEach(function(e){
+        if(e.name===c.name && e.syncId)window.__AQUA_LIVE_DELETED.deletedEntries[e.syncId]=t;
+      });
+      writeLocal();
+    }catch(e){}
+  }
+
+  var oldSave=window.save;
+  if(typeof oldSave==="function"){
+    window.save=function(){
+      var out;
+      try{out=oldSave.apply(this,arguments);}catch(e){console.error("Aqua save",e);}
+      try{ensureClientIds();writeLocal();queuePush();}catch(e){console.error("Aqua Live Sync queue",e);}
+      return out;
+    };
+  }
+
+  var oldDeleteCustomer=window.deleteCustomerByName;
+  if(typeof oldDeleteCustomer==="function"){
+    window.deleteCustomerByName=function(encodedName){
+      try{
+        var name=typeof dec==="function"?dec(encodedName):String(encodedName||"");
+        var c=typeof cget==="function"?cget(name):null;
+        if(c){
+          var copy=clone(c);
+          var entries=(db.entries||[]).filter(function(e){return e.name===name;}).map(clone);
+          copy.__entriesForDelete=entries;
+          markCustomerDelete(copy);
+        }
+      }catch(e){}
+      return oldDeleteCustomer.apply(this,arguments);
+    };
+  }
+
+  function start(){
+    var initialized=localStorage.getItem(INIT_KEY)==="1";
+
+    if(!initialized){
+      aquaLivePull(true);
+      return;
+    }
+
+    aquaLivePull(false);
+  }
+
+  document.addEventListener("visibilitychange",function(){
+    if(document.visibilityState==="visible")aquaLivePull(false);
+  });
+
+  window.addEventListener("focus",function(){aquaLivePull(false);});
+
+  setInterval(function(){
+    if(document.visibilityState==="visible")aquaLivePull(false);
+  },120000);
+
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded",function(){setTimeout(start,800);});
+  }else{
+    setTimeout(start,800);
+  }
+
+  localStorage.setItem(INIT_KEY,localStorage.getItem(INIT_KEY)==="1"?"1":"0");
+})();
+</script>
+</body>
 </html>
 <script id="aqua-drive-top-init">document.addEventListener("DOMContentLoaded",function(){setTimeout(function(){aquaDriveRefreshTopStatus();},1500);setInterval(function(){aquaDriveRefreshTopStatus();},15000);});</script>
