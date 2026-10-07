@@ -1,4 +1,5 @@
 const LIVE_FILE_NAME = "Aqua Super Live Data.json";
+const BACKUP_FOLDER_NAME = "Aqua Super Daily Backup Data";
 
 function doGet(e) {
   var action = e && e.parameter ? e.parameter.action : "get";
@@ -6,6 +7,8 @@ function doGet(e) {
 
   if (action === "get") {
     result = getMaster_();
+  } else if (action === "seedLatest") {
+    result = seedLatestBackup_();
   } else {
     result = { ok: false, error: "Unknown action" };
   }
@@ -89,6 +92,94 @@ function doPost(e) {
       error: String(err && err.message || err)
     }, e && e.parameter ? e.parameter.callback : "");
   }
+}
+
+
+function seedLatestBackup_() {
+  var lock = LockService.getScriptLock();
+
+  try {
+    lock.waitLock(30000);
+
+    var master = getMaster_();
+
+    if (master.db.customers.length || master.db.entries.length) {
+      return {
+        ok: false,
+        error: "Master already contains data; seed skipped",
+        revision: master.revision,
+        customers: master.db.customers.length,
+        entries: master.db.entries.length
+      };
+    }
+
+    var folder = getBackupFolder_();
+    var files = folder.getFiles();
+    var latest = null;
+
+    while (files.hasNext()) {
+      var f = files.next();
+      var name = f.getName();
+
+      if (!/\\.json$/i.test(name)) continue;
+
+      if (!latest || f.getLastUpdated().getTime() > latest.getLastUpdated().getTime()) {
+        latest = f;
+      }
+    }
+
+    if (!latest) {
+      return {
+        ok: false,
+        error: "No JSON backup found in backup folder"
+      };
+    }
+
+    var raw = latest.getBlob().getDataAsString() || "{}";
+    var parsed = JSON.parse(raw);
+    var sourceDb = normalize_(parsed);
+    ensureIds_(sourceDb);
+
+    var next = {
+      revision: 1,
+      updatedAt: new Date().toISOString(),
+      db: sourceDb,
+      meta: {
+        deletedCustomers: {},
+        deletedEntries: {}
+      }
+    };
+
+    writeMaster_(next);
+
+    return {
+      ok: true,
+      action: "seedLatest",
+      revision: next.revision,
+      updatedAt: next.updatedAt,
+      sourceFile: latest.getName(),
+      customers: next.db.customers.length,
+      entries: next.db.entries.length
+    };
+
+  } catch (err) {
+    return {
+      ok: false,
+      error: String(err && err.message || err)
+    };
+  } finally {
+    try { lock.releaseLock(); } catch (ignore) {}
+  }
+}
+
+function getBackupFolder_() {
+  var folders = DriveApp.getFoldersByName(BACKUP_FOLDER_NAME);
+
+  if (folders.hasNext()) {
+    return folders.next();
+  }
+
+  throw new Error("Backup folder not found: " + BACKUP_FOLDER_NAME);
 }
 
 function getMaster_() {
