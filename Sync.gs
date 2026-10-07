@@ -262,15 +262,35 @@ function normalize_(db) {
 }
 
 function ensureIds_(db) {
+  var customerById = {};
+  var customerByName = {};
+
   db.customers.forEach(function(c) {
     if (!c.syncId) {
       c.syncId = Utilities.getUuid();
+    }
+
+    customerById[c.syncId] = c;
+
+    var name = String(c.name || "").trim().toLowerCase();
+    if (name && !customerByName[name]) {
+      customerByName[name] = c;
     }
   });
 
   db.entries.forEach(function(e) {
     if (!e.syncId) {
       e.syncId = Utilities.getUuid();
+    }
+
+    if (e.customerSyncId && customerById[e.customerSyncId]) {
+      e.name = customerById[e.customerSyncId].name;
+    } else {
+      var name = String(e.name || "").trim().toLowerCase();
+      if (name && customerByName[name]) {
+        e.customerSyncId = customerByName[name].syncId;
+        e.name = customerByName[name].name;
+      }
     }
   });
 
