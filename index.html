@@ -666,7 +666,7 @@ function sendWaterReminderSMS(encodedName){
   var c=cget(dec(encodedName)); if(!c){alert("Customer nahi mila.");return;}
   var last=aquaLastWaterDate(c),days=last?aquaDaysSince(last):0;
   if(days<8){alert("Is customer ko 8+ din ka No Water Alert nahi hai.");return;}
-  var phone=String(c.mobile||"").replace(/[^\\d+]/g,"");
+  var phone=String(c.mobile||"").replace(/[^\d+]/g,"");
   if(!phone){alert("Customer mobile number nahi hai.");return;}
   location.href="sms:"+phone+"?body="+encodeURIComponent(waterReminderMessage(c,days));
  }catch(err){alert("SIM reminder open nahi ho saka: "+err.message);}
