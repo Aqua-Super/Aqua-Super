@@ -80,7 +80,25 @@ function aquaPaymentReminder(customer){
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="icon-192.png">
-<style id="aqua-direct-notes-style">.aqua-notes-wrap{margin:0 0 14px;padding:14px 12px 18px;background:#fff}.aqua-notes-title{font-size:22px;font-weight:800;color:#17324d}.aqua-notes-sub{font-size:13px;color:#64748b;margin:6px 0 12px}.aqua-notes-text{width:100%;min-height:150px;padding:13px;border:1px solid #ccd8e3;border-radius:12px;font-size:16px;box-sizing:border-box}.aqua-notes-actions,.aqua-note-btns{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0}.aqua-note-wa{background:#16a34a!important}.aqua-note-sms{background:#2563eb!important}.aqua-note-customer{padding:13px 0;border-bottom:1px solid #e5edf3}.aqua-note-name{font-size:17px;font-weight:800}.aqua-note-phone{font-size:12px;color:#64748b;margin-top:3px}.aqua-note-btns button{font-size:13px;padding:11px 5px}.aqua-notes-search-wrap{padding:0 12px 10px;background:#fff}.aqua-notes-search{width:100%;padding:12px 14px;border:1px solid #ccd8e3;border-radius:10px;font-size:15px;box-sizing:border-box}.aqua-notes-noresult{padding:10px 0;color:#64748b}@media(max-width:360px){.aqua-notes-actions,.aqua-note-btns{grid-template-columns:1fr}}</style></head>
+<style id="aqua-direct-notes-style">.aqua-notes-wrap{margin:0 0 14px;padding:14px 12px 18px;background:#fff}.aqua-notes-title{font-size:22px;font-weight:800;color:#17324d}.aqua-notes-sub{font-size:13px;color:#64748b;margin:6px 0 12px}.aqua-notes-text{width:100%;min-height:150px;padding:13px;border:1px solid #ccd8e3;border-radius:12px;font-size:16px;box-sizing:border-box}.aqua-notes-actions,.aqua-note-btns{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0}.aqua-note-wa{background:#16a34a!important}.aqua-note-sms{background:#2563eb!important}.aqua-note-customer{padding:13px 0;border-bottom:1px solid #e5edf3}.aqua-note-name{font-size:17px;font-weight:800}.aqua-note-phone{font-size:12px;color:#64748b;margin-top:3px}.aqua-note-btns button{font-size:13px;padding:11px 5px}.aqua-notes-search-wrap{padding:0 12px 10px;background:#fff}.aqua-notes-search{width:100%;padding:12px 14px;border:1px solid #ccd8e3;border-radius:10px;font-size:15px;box-sizing:border-box}.aqua-notes-noresult{padding:10px 0;color:#64748b}@media(max-width:360px){.aqua-notes-actions,.aqua-note-btns{grid-template-columns:1fr}}</style><style id="AQUA_ALERT_STYLE">
+.aqua-alert-grid{margin-top:10px}
+.aqua-alert-card{cursor:pointer;position:relative;transition:transform .12s}
+.aqua-alert-card:active{transform:scale(.98)}
+.aqua-alert-card .alert-count{font-size:24px;font-weight:800;margin-top:4px}
+.aqua-alert-card .alert-note{font-size:11px;color:#64748b;margin-top:3px}
+.aqua-alert-card.water{border-left:5px solid #dc2626}
+.aqua-alert-card.payment{border-left:5px solid #f59e0b}
+.aqua-alert-header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.aqua-alert-badge{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 8px;border-radius:999px;background:#dc2626;color:#fff;font-weight:800}
+.aqua-alert-badge.payment{background:#f59e0b}
+.aqua-alert-list .item{padding:13px 0}
+.aqua-alert-meta{font-size:12px;color:#64748b;margin-top:4px}
+.aqua-alert-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+.aqua-alert-actions button{padding:9px;font-size:13px}
+.aqua-back-btn{background:#64748b!important;margin-bottom:12px}
+.aqua-alert-empty{padding:16px;border-radius:12px;background:#f0fdf4;color:#166534;font-weight:700}
+</style>
+</head>
 <body>
 <div class="top"><h1>💧 Aqua Super</h1><p id="today"></p><div id="aquaDriveTopStatus" style="margin-top:10px;padding:9px 11px;border-radius:10px;background:#eff6ff;color:#075985;font-size:12px;font-weight:700;">☁️ Google Drive: Checking...</div></div><button id="aquaInstallBtn" type="button" style="display:none!important" aria-hidden="true">📲 Install App</button>
 <main id="main"></main>
@@ -160,7 +178,16 @@ function stat(c){
  return {due:due,jar:jar,can:can}
 }
 function setNav(p){["nHome","nCust","nEntry","nLog","nHist"].forEach(function(id){var el=document.getElementById(id);if(el)el.className=""});var map={home:"nHome",customers:"nCust",entry:"nEntry",dailyLog:"nLog",history:"nHist"};if(document.getElementById(map[p]))document.getElementById(map[p]).className="active"}
-function go(p){setNav(p);if(p==="home")home();if(p==="customers")customers();if(p==="entry")entry();if(p==="dailyLog")dailyLog();if(p==="history")history()}
+function go(p){
+ setNav(p);
+ if(p==="home"){home();return}
+ if(p==="customers"){customers();return}
+ if(p==="entry"){entry();return}
+ if(p==="dailyLog"){dailyLog();return}
+ if(p==="history"){history();return}
+ if(p==="noWater"){aquaNoWaterPage();return}
+ if(p==="paymentDue"){aquaPaymentDuePage();return}
+}
 document.getElementById("today").textContent=selectedDateLabel(dashboardDate);
 
 function home(){
@@ -196,6 +223,7 @@ function home(){
  '<div class="box"><div class="lbl">Jar Given</div><div class="num">'+jg+'</div></div>'+
  '<div class="box"><div class="lbl">Can Given</div><div class="num">'+cg+'</div></div>'+
  '</div>'+
+ '<div class="grid aqua-alert-grid"><div class="box aqua-alert-card water" onclick="aquaNoWaterPage()"><div class="aqua-alert-header"><div><div class="lbl">🔴 No Water Alert</div><div id="aquaNoWaterCount" class="alert-count">0</div><div class="alert-note">8+ days se water nahi gaya</div></div><span class="aqua-alert-badge" id="aquaNoWaterBadge">0</span></div></div><div class="box aqua-alert-card payment" onclick="aquaPaymentDuePage()"><div class="aqua-alert-header"><div><div class="lbl">🟠 Payment Due Alert</div><div id="aquaPaymentDueCount" class="alert-count">0</div><div class="alert-note">1 month due / overdue</div></div><span class="aqua-alert-badge payment" id="aquaPaymentDueBadge">0</span></div></div></div>'+
  '<div class="btns"><button onclick="go(\'customers\')">👤 Add / Search Customer</button><button onclick="go(\'entry\')">➕ New Daily Entry</button></div>'+
  '<div class="form"><h2>🔴 Customers With Due</h2><div style="margin:10px 0 12px"><input id="dueCustomerSearch" type="search" placeholder="🔎 Customer name ya mobile number search karein..." oninput="filterDueCustomers(this.value)" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;background:#fff"></div><div id="dueList">'+dueList()+'</div></div>'+
  '<div class="form"><button onclick="backup()">💾 Backup Data</button><br><br><button onclick="document.getElementById(\'restore\').click()">♻️ Restore Backup</button><input id="restore" type="file" accept=".json" style="display:none" onchange="restore(this)"></div>'+
@@ -211,7 +239,10 @@ function home(){
  '<button onclick="aquaDriveManualSync()" style="width:100%;padding:13px;border:0;border-radius:12px;background:#0ea5e9;color:white;font-size:16px;font-weight:800;">🔄 Sync Now</button>'+
  '</div>'+
  '';
+ aquaRefreshAlertBadges();
 }
+function aquaHomeAlertRefresh(){try{aquaRefreshAlertBadges()}catch(e){}}
+
 function dueList(){
  var arr=[],q=String(window._dueCustomerSearch||"").toLowerCase().trim();
  for(var i=0;i<db.customers.length;i++){
@@ -328,10 +359,7 @@ function deleteCustomerByName(encodedName){
 }
 
 function customerLastWater(c){
- var list=db.entries.filter(function(e){return e.name===c.name && e.date;});
- if(!list.length)return null;
- list.sort(function(a,b){return String(b.date).localeCompare(String(a.date));});
- return list[0].date;
+ return aquaLastWaterDate(c);
 }
 function daysAgo(dateStr){
  if(!dateStr)return "";
@@ -352,6 +380,132 @@ function customerRecentInfo(c){
  var last=customerLastWater(c);
  return '<div class="small" style="margin-top:7px">💧 <b>Last Water:</b> '+(last ? fmt(last)+" · "+daysAgo(last) : "No delivery yet")+'<br>🕒 <b>Recently Updated:</b> '+recentUpdatedText(c)+'</div>';
 }
+
+function aquaAddMonths(dateStr, months){
+ var d=new Date(dateStr+"T00:00:00");
+ if(isNaN(d.getTime())) return null;
+ var day=d.getDate();
+ d.setDate(1);
+ d.setMonth(d.getMonth()+months);
+ var last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+ d.setDate(Math.min(day,last));
+ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function aquaDaysSince(dateStr){
+ if(!dateStr)return null;
+ var d=new Date(dateStr+"T00:00:00"), t=new Date();
+ if(isNaN(d.getTime()))return null;
+ t.setHours(0,0,0,0);
+ return Math.floor((t-d)/86400000);
+}
+function aquaWaterEntriesFor(c){
+ return db.entries.filter(function(e){
+   return e.name===c.name && e.date && ((Number(e.jg)||0)>0 || (Number(e.cg)||0)>0 || (Number(e.amount)||0)>0);
+ });
+}
+function aquaLastWaterDate(c){
+ var list=aquaWaterEntriesFor(c);
+ if(!list.length)return null;
+ list.sort(function(a,b){return String(b.date).localeCompare(String(a.date));});
+ return list[0].date;
+}
+function aquaFirstWaterDate(c){
+ var list=aquaWaterEntriesFor(c);
+ if(!list.length)return null;
+ list.sort(function(a,b){return String(a.date).localeCompare(String(b.date));});
+ return list[0].date;
+}
+function aquaLastPaymentDate(c){
+ var list=db.entries.filter(function(e){return e.name===c.name && e.date && (Number(e.paid)||0)>0;});
+ if(!list.length)return null;
+ list.sort(function(a,b){return String(b.date).localeCompare(String(a.date));});
+ return list[0].date;
+}
+function aquaNoWaterAlerts(){
+ var today=dateNow(), out=[];
+ for(var i=0;i<db.customers.length;i++){
+   var c=db.customers[i], last=aquaLastWaterDate(c), days=aquaDaysSince(last);
+   if(last && days>=8) out.push({c:c,last:last,days:days});
+ }
+ out.sort(function(a,b){return b.days-a.days;});
+ return out;
+}
+function aquaPaymentDueAlerts(){
+ var today=dateNow(), out=[];
+ for(var i=0;i<db.customers.length;i++){
+   var c=db.customers[i], st=stat(c);
+   if(st.due<=0) continue;
+   var lastPay=aquaLastPaymentDate(c);
+   var anchor=lastPay || aquaFirstWaterDate(c);
+   if(!anchor) continue;
+   var dueDate=aquaAddMonths(anchor,1);
+   if(!dueDate || today<dueDate) continue;
+   out.push({c:c,due:st.due,dueDate:dueDate,lastPayment:lastPay,daysOverdue:aquaDaysSince(dueDate)});
+ }
+ out.sort(function(a,b){return b.daysOverdue-a.daysOverdue || b.due-a.due;});
+ return out;
+}
+function aquaRefreshAlertBadges(){
+ try{
+   var nw=aquaNoWaterAlerts(), pd=aquaPaymentDueAlerts();
+   var a=document.getElementById("aquaNoWaterCount"),b=document.getElementById("aquaNoWaterBadge");
+   if(a)a.textContent=nw.length;
+   if(b)b.textContent=nw.length;
+   var c=document.getElementById("aquaPaymentDueCount"),d=document.getElementById("aquaPaymentDueBadge");
+   if(c)c.textContent=pd.length;
+   if(d)d.textContent=pd.length;
+ }catch(e){}
+}
+function aquaAlertCustomerActions(name){
+ var n=enc(name);
+ return '<div class="aqua-alert-actions">'+
+   '<button onclick="openCustomerLifetime(\''+n+'\')">👤 Customer Details</button>'+
+   '<button style="background:#16a34a" onclick="sendWAByName(\''+n+'\')">📲 WhatsApp</button>'+
+ '</div>';
+}
+function aquaNoWaterPage(){
+ var rows=aquaNoWaterAlerts();
+ document.getElementById("today").textContent="No Water Alert";
+ var out='<div class="form"><button class="aqua-back-btn" onclick="go(\'home\')">← Back to Dashboard</button>'+
+   '<h2>🔴 Customers With No Water</h2>'+
+   '<div class="small">8 ya usse zyada din se water delivery record nahi hai.</div>'+
+   '<div class="aqua-alert-list">';
+ if(!rows.length){
+   out+='<div class="aqua-alert-empty">✅ Abhi koi customer 8+ din se pending nahi hai.</div>';
+ }else{
+   rows.forEach(function(x){
+     out+='<div class="item"><b>'+esc(x.c.name)+' Ji</b>'+
+       '<div class="aqua-alert-meta">📱 '+esc(x.c.mobile)+' · 💧 Last Water: '+fmt(x.last)+' · 🔴 '+x.days+' days se water nahi gaya</div>'+
+       aquaAlertCustomerActions(x.c.name)+'</div>';
+   });
+ }
+ out+='</div></div>';
+ document.getElementById("main").innerHTML=out;
+}
+function aquaPaymentDuePage(){
+ var rows=aquaPaymentDueAlerts();
+ document.getElementById("today").textContent="Payment Due Alert";
+ var out='<div class="form"><button class="aqua-back-btn" onclick="go(\'home\')">← Back to Dashboard</button>'+
+   '<h2>🟠 Payment Due / Overdue</h2>'+
+   '<div class="small">Customer ka current due amount aur last payment/water cycle ke ek month complete hone par yahan alert dikhega.</div>'+
+   '<div class="aqua-alert-list">';
+ if(!rows.length){
+   out+='<div class="aqua-alert-empty">✅ Abhi koi monthly payment due/overdue alert nahi hai.</div>';
+ }else{
+   rows.forEach(function(x){
+     var status=x.daysOverdue===0 ? "Due Today" : x.daysOverdue+" days overdue";
+     var cycle=x.lastPayment ? "Last Payment: "+fmt(x.lastPayment) : "Water Start: "+fmt(aquaFirstWaterDate(x.c));
+     out+='<div class="item"><b>'+esc(x.c.name)+' Ji</b>'+
+       '<div class="aqua-alert-meta">📱 '+esc(x.c.mobile)+' · 💰 Due: <span class="red">'+money(x.due)+'</span></div>'+
+       '<div class="aqua-alert-meta">📅 Due Date: '+fmt(x.dueDate)+' · 🔔 '+status+'</div>'+
+       '<div class="aqua-alert-meta">🗓️ '+cycle+'</div>'+
+       aquaAlertCustomerActions(x.c.name)+'</div>';
+   });
+ }
+ out+='</div></div>';
+ document.getElementById("main").innerHTML=out;
+}
+
 
 function balanceLabel(n){
  return Number(n)<0 ? "Advance Amount" : "Due Amount";
