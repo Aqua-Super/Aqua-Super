@@ -466,11 +466,13 @@ function aquaAlertCustomerActions(name,isPaymentDue){
  var n=enc(name);
  var wa=isPaymentDue
    ? '<button style="background:#16a34a" onclick="sendPaymentReminder(\''+n+'\')">📲 WhatsApp Reminder</button>'
-   : '<button style="background:#16a34a" onclick="sendWAByName(\''+n+'\')">📲 WhatsApp</button>';
+   : '<button style="background:#16a34a" onclick="sendWaterReminderWA(\''+n+'\')">📲 WhatsApp Reminder</button>';
+ var sim=isPaymentDue
+   ? '<button style="background:#2563eb" onclick="sendReminderSMS(\''+n+'\')">💬 SIM Reminder</button>'
+   : '<button style="background:#2563eb" onclick="sendWaterReminderSMS(\''+n+'\')">💬 SIM Reminder</button>';
  return '<div class="aqua-alert-actions">'+
    '<button onclick="openCustomerLifetime(\''+n+'\')">👤 Customer Details</button>'+
-   wa+
-   '<button style="background:#2563eb" onclick="sendReminderSMS(\''+n+'\')">💬 SIM Reminder</button>'+
+   wa+sim+
  '</div>';
 }
 function aquaNoWaterPage(){
@@ -486,7 +488,7 @@ function aquaNoWaterPage(){
    rows.forEach(function(x){
      out+='<div class="item"><b>'+esc(x.c.name)+' Ji</b>'+
        '<div class="aqua-alert-meta">📱 '+esc(x.c.mobile)+' · 💧 Last Water: '+fmt(x.last)+' · 🔴 '+x.days+' days se water nahi gaya</div>'+
-       aquaAlertCustomerActions(x.c.name)+'</div>';
+       aquaAlertCustomerActions(x.c.name,false)+'</div>';
    });
  }
  out+='</div></div>';
@@ -643,6 +645,30 @@ function message(e,c){
  lines.push("");
  lines.push("Thank You.");
  return lines.join("\n");
+}
+function waterReminderMessage(c,days){
+ return ["Hello "+c.name+" Ji,","","Aapke yahan pichhle "+days+" din se Aqua Super water delivery ka record nahi hai.","Agar aapko water chahiye to please hume bata dein.","","Thank you – Aqua Super"].join("\n");
+}
+function sendWaterReminderWA(encodedName){
+ try{
+  var c=cget(dec(encodedName)); if(!c){alert("Customer nahi mila.");return;}
+  var last=aquaLastWaterDate(c),days=last?aquaDaysSince(last):0;
+  if(days<8){alert("Is customer ko 8+ din ka No Water Alert nahi hai.");return;}
+  var phone=normalizeIndiaNumber(c.mobile); if(phone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
+  pendingWA={e:null,c:c,phone:phone,reminderText:waterReminderMessage(c,days)};
+  document.getElementById("waPreviewText").textContent=waterReminderMessage(c,days);
+  document.getElementById("waModal").style.display="flex";
+ }catch(err){alert("WhatsApp reminder open nahi ho saka: "+err.message);}
+}
+function sendWaterReminderSMS(encodedName){
+ try{
+  var c=cget(dec(encodedName)); if(!c){alert("Customer nahi mila.");return;}
+  var last=aquaLastWaterDate(c),days=last?aquaDaysSince(last):0;
+  if(days<8){alert("Is customer ko 8+ din ka No Water Alert nahi hai.");return;}
+  var phone=String(c.mobile||"").replace(/[^\\d+]/g,"");
+  if(!phone){alert("Customer mobile number nahi hai.");return;}
+  location.href="sms:"+phone+"?body="+encodeURIComponent(waterReminderMessage(c,days));
+ }catch(err){alert("SIM reminder open nahi ho saka: "+err.message);}
 }
 function paymentReminderMessage(c){
  var s=stat(c);
