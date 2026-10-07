@@ -460,11 +460,14 @@ function aquaRefreshAlertBadges(){
    if(d)d.textContent=pd.length;
  }catch(e){}
 }
-function aquaAlertCustomerActions(name){
+function aquaAlertCustomerActions(name,isPaymentDue){
  var n=enc(name);
+ var wa=isPaymentDue
+   ? '<button style="background:#16a34a" onclick="sendPaymentReminder(\''+n+'\')">📲 WhatsApp Reminder</button>'
+   : '<button style="background:#16a34a" onclick="sendWAByName(\''+n+'\')">📲 WhatsApp</button>';
  return '<div class="aqua-alert-actions">'+
    '<button onclick="openCustomerLifetime(\''+n+'\')">👤 Customer Details</button>'+
-   '<button style="background:#16a34a" onclick="sendWAByName(\''+n+'\')">📲 WhatsApp</button>'+
+   wa+
    '<button style="background:#2563eb" onclick="sendReminderSMS(\''+n+'\')">💬 SIM Reminder</button>'+
  '</div>';
 }
@@ -504,7 +507,7 @@ function aquaPaymentDuePage(){
        '<div class="aqua-alert-meta">📱 '+esc(x.c.mobile)+' · 💰 Due: <span class="red">'+money(x.due)+'</span></div>'+
        '<div class="aqua-alert-meta">📅 Due Date: '+fmt(x.dueDate)+' · 🔔 '+status+'</div>'+
        '<div class="aqua-alert-meta">🗓️ '+cycle+'</div>'+
-       aquaAlertCustomerActions(x.c.name)+'</div>';
+       aquaAlertCustomerActions(x.c.name,true)+'</div>';
    });
  }
  out+='</div></div>';
