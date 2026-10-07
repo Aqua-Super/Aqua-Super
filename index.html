@@ -1546,6 +1546,7 @@ function aquaImportOldBackup(){
     ensureClientIds();
     if(typeof normalizeDB==="function")normalizeDB();
     writeLocal();
+    localStorage.setItem(INIT_KEY,"1");
 
     if(forceReload){
       setTimeout(function(){location.reload();},250);
@@ -1729,7 +1730,6 @@ function aquaImportOldBackup(){
     setTimeout(start,800);
   }
 
-  localStorage.setItem(INIT_KEY,localStorage.getItem(INIT_KEY)==="1"?"1":"0");
 })();
 </script>
 </body>
