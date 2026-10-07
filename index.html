@@ -1632,26 +1632,53 @@ function aquaImportOldBackup(){
     document.body.appendChild(form);
     try{form.submit();}catch(e){}
 
-    setTimeout(function(){
-      try{form.remove();iframe.remove();}catch(e){}
+    var baseRevision=Number(window.__AQUA_LIVE_REVISION||0)||0;
+    var started=Date.now();
 
+    function finishPush(){
+      busy=false;
+      if(queued){
+        queued=false;
+        clearTimeout(pushTimer);
+        pushTimer=setTimeout(aquaLivePost,500);
+      }
+    }
+
+    function waitForMaster(attempt){
       aquaLiveJsonp(LIVE_URL+"?action=get",30000).then(function(res){
         if(!res || res.ok===false)throw new Error(res&&res.error?res.error:"Live Master read failed after save");
 
-        applyMaster(res,false);
-        try{
-          if(typeof aquaDriveBackup==="function")aquaDriveBackup(true);
-        }catch(e){}
+        var incoming=Number(res.revision||0)||0;
 
+        if(incoming>baseRevision){
+          applyMaster(res,false);
+          try{
+            if(typeof aquaDriveBackup==="function")aquaDriveBackup(true);
+          }catch(e){}
+          finishPush();
+          return;
+        }
+
+        if(Date.now()-started<30000){
+          setTimeout(function(){waitForMaster(attempt+1);},1500);
+          return;
+        }
+
+        console.log("Aqua Live Sync: master revision did not advance; local data kept.");
+        finishPush();
       }).catch(function(err){
-        console.log("Aqua Live Sync push/pull:",err&&err.message||err);
-      }).finally(function(){
-        busy=false;
-        if(queued){
-          clearTimeout(pushTimer);
-          pushTimer=setTimeout(aquaLivePost,150);
+        if(Date.now()-started<30000){
+          setTimeout(function(){waitForMaster(attempt+1);},1500);
+        }else{
+          console.log("Aqua Live Sync push/pull:",err&&err.message||err);
+          finishPush();
         }
       });
+    }
+
+    setTimeout(function(){
+      try{form.remove();iframe.remove();}catch(e){}
+      waitForMaster(0);
     },2500);
   }
 
