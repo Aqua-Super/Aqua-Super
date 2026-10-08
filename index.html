@@ -2012,6 +2012,9 @@ function aquaImportOldBackup(){
     var modal=document.getElementById("aquaSmsGatewayModal");
     document.getElementById("aquaSmsGatewayMeta").textContent="To: "+pending.phone+" • Gateway: "+gatewayUrl();
     document.getElementById("aquaSmsGatewayPreview").textContent=pending.message;
+    var sendBtn=document.getElementById("aquaSmsGatewaySend");
+    sendBtn.disabled=false;
+    sendBtn.textContent="✅ OK & Send SMS";
     modal.style.display="flex";modal.setAttribute("aria-hidden","false");
   }
   function closePreview(){
