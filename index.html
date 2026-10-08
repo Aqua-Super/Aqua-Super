@@ -1837,7 +1837,6 @@ function aquaImportOldBackup(){
 
       if(forceReload || incoming>current){
         if(incoming>current && aquaLiveHasLocalChanges()){
-          window.__AQUA_LIVE_REVISION=incoming;
           aquaLivePost();
         }else{
           applyMaster(res,!!forceReload);
