@@ -1892,23 +1892,42 @@ function aquaImportOldBackup(){
     /* Mobile/PWA-safe cross-origin POST. Apps Script accepts this simple
        form-encoded request without a CORS preflight; confirmation still
        comes from the existing Live Master revision polling below. */
-    var postBody="data="+encodeURIComponent(payload);
-    var postSent=false;
+    /* Send the full Live Sync payload without fetch keepalive.
+       The database is large, so keepalive's small request-body limit can
+       reject the POST before it reaches Apps Script. */
     try{
       if(typeof fetch==="function"){
         fetch(LIVE_URL,{
           method:"POST",
           mode:"no-cors",
           headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
-          body:postBody,
-          keepalive:true
-        }).then(function(){postSent=true;}).catch(function(){});
-      }
-    }catch(e){}
+          body:"data="+encodeURIComponent(payload)
+        }).catch(function(){
+          /* Hidden-form fallback for browsers/PWA transports that reject
+             the cross-origin fetch. */
+          try{
+            var iframe=document.createElement("iframe");
+            iframe.name="aquaLiveSyncFrame_"+Date.now();
+            iframe.style.display="none";
+            document.body.appendChild(iframe);
 
-    /* Older browsers fallback to the existing hidden-form transport. */
-    if(typeof fetch!=="function"){
-      try{
+            var form=document.createElement("form");
+            form.method="POST";
+            form.action=LIVE_URL;
+            form.target=iframe.name;
+            form.style.display="none";
+
+            var data=document.createElement("textarea");
+            data.name="data";
+            data.value=payload;
+            data.style.display="none";
+            form.appendChild(data);
+            document.body.appendChild(form);
+            form.submit();
+            setTimeout(function(){try{form.remove();iframe.remove();}catch(e){}},10000);
+          }catch(e){}
+        });
+      }else{
         var iframe=document.createElement("iframe");
         iframe.name="aquaLiveSyncFrame_"+Date.now();
         iframe.style.display="none";
@@ -1927,8 +1946,9 @@ function aquaImportOldBackup(){
         form.appendChild(data);
         document.body.appendChild(form);
         form.submit();
-      }catch(e){}
-    }
+        setTimeout(function(){try{form.remove();iframe.remove();}catch(e){}},10000);
+      }
+    }catch(e){}
 
     var baseRevision=Number(window.__AQUA_LIVE_REVISION||0)||0;
     var started=Date.now();
