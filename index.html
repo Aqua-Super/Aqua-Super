@@ -2252,7 +2252,7 @@ function aquaImportOldBackup(){
 #aquaSmsGatewayModal{position:fixed;inset:0;background:rgba(0,0,0,.48);display:none;align-items:center;justify-content:center;z-index:99999;padding:18px}
 #aquaSmsGatewayCard{width:min(520px,100%);background:#fff;border-radius:18px;padding:18px;box-shadow:0 12px 40px #0004}
 #aquaSmsGatewayCard h3{margin:0 0 8px;font-size:20px;color:#17324d}
-#aquaSmsGatewayPreview{white-space:pre-wrap;background:#f7fafc;border:1px solid #d8e2ea;border-radius:12px;padding:13px;font-size:15px;line-height:1.45;max-height:48vh;overflow:auto}
+#aquaSmsGatewayPreview{width:100%;min-height:180px;white-space:pre-wrap;background:#f7fafc;border:1px solid #d8e2ea;border-radius:12px;padding:13px;font-size:15px;line-height:1.45;max-height:48vh;overflow:auto;resize:vertical;font-family:Arial,sans-serif}
 #aquaSmsGatewayMeta{font-size:12px;color:#64748b;margin:8px 0 12px}
 #aquaSmsGatewayActions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 #aquaSmsGatewayActions button{font-size:15px}
@@ -2262,7 +2262,7 @@ function aquaImportOldBackup(){
   <div id="aquaSmsGatewayCard">
     <h3>📱 SMS Verify</h3>
     <div id="aquaSmsGatewayMeta"></div>
-    <div id="aquaSmsGatewayPreview"></div>
+    <textarea id="aquaSmsGatewayPreview" aria-label="SMS message"></textarea>
     <div id="aquaSmsGatewayActions">
       <button id="aquaSmsGatewayCancel" type="button">❌ Cancel</button>
       <button id="aquaSmsGatewaySend" type="button">✅ OK & Send SMS</button>
@@ -2311,7 +2311,7 @@ function aquaImportOldBackup(){
     pending={phone:cleanPhone(phone),message:String(msg||""),onOk:onOk};
     var modal=document.getElementById("aquaSmsGatewayModal");
     document.getElementById("aquaSmsGatewayMeta").textContent="To: "+pending.phone+" • Gateway: "+gatewayUrl();
-    document.getElementById("aquaSmsGatewayPreview").textContent=pending.message;
+    document.getElementById("aquaSmsGatewayPreview").value=pending.message;
     var sendBtn=document.getElementById("aquaSmsGatewaySend");
     sendBtn.disabled=false;
     sendBtn.textContent="✅ OK & Send SMS";
@@ -2359,7 +2359,10 @@ function aquaImportOldBackup(){
   async function confirmSend(){
     if(!pending)return;
     var p=pending;
+    var editor=document.getElementById("aquaSmsGatewayPreview");
+    p.message=editor ? String(editor.value||"") : p.message;
     var sendBtn=document.getElementById("aquaSmsGatewaySend");
+    if(!p.message.trim()){alert("SMS message khali nahi ho sakta.");return;}
     sendBtn.disabled=true;sendBtn.textContent="⏳ Sending...";
     try{
       await sendDirect(p.phone,p.message);
