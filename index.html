@@ -1973,9 +1973,8 @@ function aquaImportOldBackup(){
           if(aquaLiveRemoteContainsLocal(res,db)){
             applyMaster(res,false);
             aquaLiveSetTopStatus("ok","Synced • "+liveTimeLabel()+" • Rev "+incoming);
-            try{
-              if(typeof aquaDriveBackup==="function")aquaDriveBackup(true);
-            }catch(e){}
+            /* Live Sync is intentionally independent from Google Drive Daily Backup.
+               Do not trigger or overwrite the Drive JSON from a Live Sync confirmation. */
             finishPush();
             return;
           }
