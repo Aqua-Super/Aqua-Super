@@ -2114,7 +2114,27 @@ function aquaImportOldBackup(){
     };
   }
 
-  /* Customer add/edit must explicitly enter the Live Sync queue.\n     These actions update the DB directly and must not rely only on the generic save wrapper. */\n  var oldAddCustomer=window.addCustomer;\n  if(typeof oldAddCustomer==="function"){\n    window.addCustomer=function(){\n      var out=oldAddCustomer.apply(this,arguments);\n      try{ensureClientIds();writeLocal();queuePush();}catch(e){console.error("Aqua Live Sync add customer",e);}\n      return out;\n    };\n  }\n\n  var oldEditCustomer=window.editCustomerByName;\n  if(typeof oldEditCustomer==="function"){\n    window.editCustomerByName=function(){\n      var out=oldEditCustomer.apply(this,arguments);\n      try{ensureClientIds();writeLocal();queuePush();}catch(e){console.error("Aqua Live Sync edit customer",e);}\n      return out;\n    };\n  }\n\n  var oldDeleteCustomer=window.deleteCustomerByName;
+  /* Customer add/edit must explicitly enter the Live Sync queue.
+     These actions update the DB directly and must not rely only on the generic save wrapper. */
+  var oldAddCustomer=window.addCustomer;
+  if(typeof oldAddCustomer==="function"){
+    window.addCustomer=function(){
+      var out=oldAddCustomer.apply(this,arguments);
+      try{ensureClientIds();writeLocal();queuePush();}catch(e){console.error("Aqua Live Sync add customer",e);}
+      return out;
+    };
+  }
+
+  var oldEditCustomer=window.editCustomerByName;
+  if(typeof oldEditCustomer==="function"){
+    window.editCustomerByName=function(){
+      var out=oldEditCustomer.apply(this,arguments);
+      try{ensureClientIds();writeLocal();queuePush();}catch(e){console.error("Aqua Live Sync edit customer",e);}
+      return out;
+    };
+  }
+
+  var oldDeleteCustomer=window.deleteCustomerByName;
   if(typeof oldDeleteCustomer==="function"){
     window.deleteCustomerByName=function(encodedName){
       var name=typeof dec==="function"?dec(encodedName):String(encodedName||"");
