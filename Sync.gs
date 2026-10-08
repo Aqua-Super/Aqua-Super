@@ -255,6 +255,18 @@ function getMaster_() {
 }
 
 function getRevision_() {
+  var props = PropertiesService.getScriptProperties();
+  var cached = props.getProperty("AQUA_LIVE_REVISION_CACHE");
+  var cachedTime = props.getProperty("AQUA_LIVE_UPDATED_AT_CACHE");
+
+  if (cached !== null) {
+    return {
+      ok: true,
+      revision: Number(cached) || 0,
+      updatedAt: cachedTime || null
+    };
+  }
+
   var file = findMaster_();
 
   if (!file) {
@@ -267,11 +279,16 @@ function getRevision_() {
 
   var text = file.getBlob().getDataAsString() || "{}";
   var obj = JSON.parse(text);
+  var revision = Number(obj.revision) || 0;
+  var updatedAt = obj.updatedAt || null;
+
+  props.setProperty("AQUA_LIVE_REVISION_CACHE", String(revision));
+  props.setProperty("AQUA_LIVE_UPDATED_AT_CACHE", String(updatedAt || ""));
 
   return {
     ok: true,
-    revision: Number(obj.revision) || 0,
-    updatedAt: obj.updatedAt || null
+    revision: revision,
+    updatedAt: updatedAt
   };
 }
 
@@ -288,6 +305,11 @@ function findMaster_() {
 function writeMaster_(obj) {
   var oldFile = findMaster_();
   var text = JSON.stringify(obj);
+
+  PropertiesService.getScriptProperties().setProperties({
+    AQUA_LIVE_REVISION_CACHE: String(Number(obj.revision) || 0),
+    AQUA_LIVE_UPDATED_AT_CACHE: String(obj.updatedAt || "")
+  }, true);
 
   if (oldFile) {
     oldFile.setContent(text);
