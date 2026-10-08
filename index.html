@@ -2054,7 +2054,7 @@ function aquaImportOldBackup(){
       showPreview(phone,msg,function(){
         db.entries.push(e);c.updatedAt=new Date().toISOString();save();
         clearDailyEntryAmountBox();
-        go("home");
+        /* Stay on Daily Entry so the next customer can be searched and entered immediately. */
       });
     }catch(err){alert("SMS preview nahi ban saka: "+err.message);}
   };
