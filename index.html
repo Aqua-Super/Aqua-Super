@@ -2003,17 +2003,11 @@ function aquaImportOldBackup(){
         var data=await res.json();
         if(!data || data.ok!==true)throw new Error(data&&data.error?data.error:"Gateway SMS failed");
         try{localStorage.setItem("AQUA_SMS_GATEWAY_URL",base);}catch(e){}
-        if(data.statusId){
-          var deadline=Date.now()+90000;
-          while(Date.now()<deadline){
-            await new Promise(function(resolve){setTimeout(resolve,1500);});
-            var sr=await fetch(base+"/?action=status&id="+encodeURIComponent(data.statusId),{method:"GET"});
-            var sd=await sr.json();
-            if(sd.status==="SENT" || sd.status==="DELIVERED")return sd;
-            if(sd.status==="FAILED" || sd.status==="DELIVERY_FAILED")throw new Error("SIM/network SMS status: "+sd.status);
-          }
-          throw new Error("SMS status confirmation timeout");
-        }
+        /*
+         * Gateway accepted the SMS request successfully. Do not block the
+         * Aqua Super entry on the optional SENT/DELIVERED status callback.
+         * The gateway/phone has already accepted the SIM send request.
+         */
         return data;
       }catch(err){lastErr=err;}
     }
