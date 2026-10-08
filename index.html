@@ -1827,7 +1827,10 @@ function aquaImportOldBackup(){
   function aquaLivePull(forceReload,verifySameRevision){
     if(pullBusy)return;
     pullBusy=true;
-    aquaLiveSetTopStatus("sync","Checking...");
+    /* Initial/full pulls run silently in the background. The connection
+       indicator must remain stable instead of showing "Checking..." while
+       the request is in flight. */
+    aquaLiveSetTopStatus("ok","Connected • Syncing in background");
 
     aquaLiveJsonp(LIVE_URL+"?action=get",12000).then(function(res){
       if(!res || res.ok===false)throw new Error(res&&res.error?res.error:"Live Master read failed");
