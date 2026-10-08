@@ -1654,7 +1654,7 @@ function aquaImportOldBackup(){
 
   function aquaLiveCheckRevision(){
     if(pullBusy)return;
-    aquaLiveJsonp(LIVE_URL+"?action=revision",10000).then(function(res){
+    aquaLiveJsonp(LIVE_URL+"?action=revision",5000).then(function(res){
       if(!res || res.ok===false)throw new Error(res&&res.error?res.error:"Live revision read failed");
       var incoming=Number(res.revision||0)||0;
       var current=Number(window.__AQUA_LIVE_REVISION||0)||0;
@@ -1664,8 +1664,11 @@ function aquaImportOldBackup(){
         aquaLiveSetTopStatus("ok","Up to date • "+liveTimeLabel()+" • Rev "+current);
       }
     }).catch(function(err){
-      aquaLiveSetTopStatus("wait","Retrying");
+      aquaLiveSetTopStatus("wait","Retrying in 1s...");
       console.log("Aqua Live Sync revision:",err&&err.message||err);
+      setTimeout(function(){
+        if(document.visibilityState==="visible")aquaLiveCheckRevision();
+      },1000);
     });
   }
 
@@ -1674,7 +1677,7 @@ function aquaImportOldBackup(){
     pullBusy=true;
     aquaLiveSetTopStatus("sync","Checking...");
 
-    aquaLiveJsonp(LIVE_URL+"?action=get",30000).then(function(res){
+    aquaLiveJsonp(LIVE_URL+"?action=get",12000).then(function(res){
       if(!res || res.ok===false)throw new Error(res&&res.error?res.error:"Live Master read failed");
 
       var incoming=Number(res.revision||0)||0;
