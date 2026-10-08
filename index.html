@@ -1912,6 +1912,171 @@ function aquaImportOldBackup(){
 
 })();
 </script>
+
+<!-- AQUA-DIRECT-SMS-GATEWAY-V1 -->
+<style id="aquaSmsGatewayStyle">
+#aquaSmsGatewayModal{position:fixed;inset:0;background:rgba(0,0,0,.48);display:none;align-items:center;justify-content:center;z-index:99999;padding:18px}
+#aquaSmsGatewayCard{width:min(520px,100%);background:#fff;border-radius:18px;padding:18px;box-shadow:0 12px 40px #0004}
+#aquaSmsGatewayCard h3{margin:0 0 8px;font-size:20px;color:#17324d}
+#aquaSmsGatewayPreview{white-space:pre-wrap;background:#f7fafc;border:1px solid #d8e2ea;border-radius:12px;padding:13px;font-size:15px;line-height:1.45;max-height:48vh;overflow:auto}
+#aquaSmsGatewayMeta{font-size:12px;color:#64748b;margin:8px 0 12px}
+#aquaSmsGatewayActions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+#aquaSmsGatewayActions button{font-size:15px}
+#aquaSmsGatewayCancel{background:#64748b!important}
+</style>
+<div id="aquaSmsGatewayModal" aria-hidden="true">
+  <div id="aquaSmsGatewayCard">
+    <h3>📱 SMS Verify</h3>
+    <div id="aquaSmsGatewayMeta"></div>
+    <div id="aquaSmsGatewayPreview"></div>
+    <div id="aquaSmsGatewayActions">
+      <button id="aquaSmsGatewayCancel" type="button">❌ Cancel</button>
+      <button id="aquaSmsGatewaySend" type="button">✅ OK & Send SMS</button>
+    </div>
+  </div>
+</div>
+<script id="aquaDirectSmsGatewayV1">
+(function(){
+  if(window.__AQUA_DIRECT_SMS_GATEWAY_V1)return;
+  window.__AQUA_DIRECT_SMS_GATEWAY_V1=true;
+
+  /* The Gateway API key is the same key shown in the installed Aqua Super SMS Gateway app. */
+  var GATEWAY_KEY="e86d408eabb74182";
+  var DESKTOP_GATEWAY="http://192.168.29.158:8765";
+  var MOBILE_GATEWAY="http://127.0.0.1:8765";
+  var pending=null;
+
+  function isMobile(){
+    return /Android|iPhone|iPad|iPod/i.test(String(navigator.userAgent||""));
+  }
+  function gatewayUrl(){
+    try{
+      var saved=localStorage.getItem("AQUA_SMS_GATEWAY_URL");
+      if(saved && /^https?:\/\//i.test(saved))return saved.replace(/\/+$/,"");
+    }catch(e){}
+    return isMobile()?MOBILE_GATEWAY:DESKTOP_GATEWAY;
+  }
+  function cleanPhone(x){
+    return String(x||"").replace(/[^0-9+]/g,"");
+  }
+  function showPreview(phone,msg,onOk){
+    pending={phone:cleanPhone(phone),message:String(msg||""),onOk:onOk};
+    var modal=document.getElementById("aquaSmsGatewayModal");
+    document.getElementById("aquaSmsGatewayMeta").textContent="To: "+pending.phone+" • Gateway: "+gatewayUrl();
+    document.getElementById("aquaSmsGatewayPreview").textContent=pending.message;
+    modal.style.display="flex";modal.setAttribute("aria-hidden","false");
+  }
+  function closePreview(){
+    pending=null;
+    var modal=document.getElementById("aquaSmsGatewayModal");
+    modal.style.display="none";modal.setAttribute("aria-hidden","true");
+  }
+  async function sendDirect(phone,msg){
+    var base=gatewayUrl();
+    var body=new URLSearchParams();
+    body.set("key",GATEWAY_KEY);
+    body.set("phone",cleanPhone(phone));
+    body.set("message",String(msg||""));
+    var opts={method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()};
+    /* Chrome supports targetAddressSpace for secure pages talking to local-network services. */
+    try{opts.targetAddressSpace="local";}catch(e){}
+    var res=await fetch(base+"/",opts);
+    var data=await res.json();
+    if(!data || data.ok!==true)throw new Error(data&&data.error?data.error:"Gateway SMS failed");
+    return data;
+  }
+  async function confirmSend(){
+    if(!pending)return;
+    var p=pending;
+    var sendBtn=document.getElementById("aquaSmsGatewaySend");
+    sendBtn.disabled=true;sendBtn.textContent="⏳ Sending...";
+    try{
+      await sendDirect(p.phone,p.message);
+      closePreview();
+      if(typeof p.onOk==="function")p.onOk();
+      alert("✅ SMS successfully sent.");
+    }catch(err){
+      sendBtn.disabled=false;sendBtn.textContent="✅ OK & Send SMS";
+      alert("❌ SMS send nahi hua.\n\nGateway check karein:\n"+gatewayUrl()+"\n\n"+(err&&err.message?err.message:"Connection failed"));
+    }
+  }
+  document.getElementById("aquaSmsGatewayCancel").onclick=closePreview;
+  document.getElementById("aquaSmsGatewaySend").onclick=confirmSend;
+  document.getElementById("aquaSmsGatewayModal").addEventListener("click",function(e){
+    if(e.target===this)closePreview();
+  });
+
+  /* Save + Send SMS: show the exact message first; only save after user confirms. */
+  window.saveEntrySMS=function(){
+    try{
+      var c=cget(document.getElementById("en").value);
+      if(!c){alert("Customer select karein.");return;}
+      var jg=+document.getElementById("jg").value||0,je=+document.getElementById("je").value||0;
+      var cg=+document.getElementById("cg").value||0,ce=+document.getElementById("ce").value||0;
+      var p=+document.getElementById("pay").value||0,s=stat(c);
+      var jarRate=+document.getElementById("ejr").value||0,canRate=+document.getElementById("ecr").value||0;
+      var amount=jg*jarRate+cg*canRate;
+      var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due,createdAt:new Date().toISOString()};
+      var phone=cleanPhone(c.mobile);
+      if(!phone){alert("Customer mobile number nahi hai.");return;}
+      var msg=message(e,c);
+      showPreview(phone,msg,function(){
+        db.entries.push(e);c.updatedAt=new Date().toISOString();save();
+        clearDailyEntryAmountBox();
+        go("home");
+      });
+    }catch(err){alert("SMS preview nahi ban saka: "+err.message);}
+  };
+
+  window.sendSMS=function(e,c){
+    if(!e||!c)return;
+    var phone=cleanPhone(c.mobile);
+    if(!phone){alert("Customer mobile number nahi hai.");return;}
+    showPreview(phone,message(e,c),function(){});
+  };
+
+  window.sendReminderSMS=function(encodedName){
+    try{
+      var c=cget(dec(encodedName));if(!c){alert("Customer nahi mila.");return;}
+      var st=stat(c);if(st.due<=0){alert("Is customer ka koi due amount nahi hai.");return;}
+      var phone=cleanPhone(c.mobile);if(!phone){alert("Customer mobile number nahi hai.");return;}
+      showPreview(phone,paymentReminderMessage(c),function(){});
+    }catch(err){alert("Reminder SMS preview nahi khul saka: "+err.message);}
+  };
+
+  window.sendWaterReminderSMS=function(encodedName){
+    try{
+      var c=cget(dec(encodedName));if(!c){alert("Customer nahi mila.");return;}
+      var last=aquaLastWaterDate(c),days=last?aquaDaysSince(last):0;
+      if(days<8){alert("Is customer ko 8+ din ka No Water Alert nahi hai.");return;}
+      var phone=cleanPhone(c.mobile);if(!phone){alert("Customer mobile number nahi hai.");return;}
+      showPreview(phone,waterReminderMessage(c,days),function(){});
+    }catch(err){alert("Water reminder SMS preview nahi khul saka: "+err.message);}
+  };
+
+  window.sendLatestSMS=function(encodedName){
+    try{
+      var c=cget(dec(encodedName));if(!c){alert("Customer nahi mila.");return;}
+      var es=db.entries.filter(function(e){return String(e.name)===String(c.name);});
+      if(!es.length){alert("Is customer ka delivery/update record nahi mila.");return;}
+      window.sendSMS(es[es.length-1],c);
+    }catch(err){alert("SMS preview nahi khul saka: "+err.message);}
+  };
+
+  /* Notes / custom SMS also uses the same verify screen and direct gateway. */
+  window.aquaOpenSms=function(name,phone,due){
+    var amount=Number(due)||0;
+    if(amount<=0){alert("Is customer ka due amount nahi hai.");return;}
+    var msg="Hello "+(name||"Customer")+" Ji,\n\nAapka Aqua Super ka ₹"+amount.toFixed(0)+" payment due hai.\nAapse request hai ki please apna pending payment suvidha anusar kar dein.\nPayment karne ke baad please hume inform kar dein.\n\nThank you – Aqua Super";
+    showPreview(phone,msg,function(){});
+  };
+
+  window.aquaDirectSmsGatewaySend=function(phone,msg,done){
+    showPreview(phone,msg,done||function(){});
+  };
+})();
+</script>
+
 </body>
 </html>
 <script id="aqua-drive-top-init">document.addEventListener("DOMContentLoaded",function(){setTimeout(function(){aquaDriveRefreshTopStatus();},1500);setInterval(function(){aquaDriveRefreshTopStatus();},15000);});</script>
