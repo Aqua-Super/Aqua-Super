@@ -1993,14 +1993,19 @@ function aquaImportOldBackup(){
   }
   function gatewayUrls(){
     var out=[];
+    var saved="";
     try{
-      var saved=localStorage.getItem("AQUA_SMS_GATEWAY_URL");
-      if(saved && /^https?:\/\//i.test(saved))out.push(saved.replace(/\/+$/,""));
+      saved=localStorage.getItem("AQUA_SMS_GATEWAY_URL")||"";
+      if(saved && !/^https?:\/\//i.test(saved))saved="";
+      saved=saved.replace(/\/+$/,"");
     }catch(e){}
     if(isMobile()){
+      /* On the phone always prefer localhost; LAN is only the fallback. */
       out.push(MOBILE_GATEWAY);
+      out.push(saved);
       out.push(MOBILE_FALLBACK_GATEWAY);
     }else{
+      out.push(saved);
       out.push(DESKTOP_GATEWAY);
     }
     return out.filter(function(v,i,a){return v && a.indexOf(v)===i;});
@@ -2036,7 +2041,15 @@ function aquaImportOldBackup(){
         body.set("message",String(msg||""));
         var opts={method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()};
         try{opts.targetAddressSpace="local";}catch(e){}
+        var controller=null;
+        var timer=null;
+        if(window.AbortController){
+          controller=new AbortController();
+          opts.signal=controller.signal;
+          timer=setTimeout(function(){try{controller.abort();}catch(e){}},8000);
+        }
         var res=await fetch(base+"/",opts);
+        if(timer)clearTimeout(timer);
         var data=await res.json();
         if(!data || data.ok!==true)throw new Error(data&&data.error?data.error:"Gateway SMS failed");
         try{localStorage.setItem("AQUA_SMS_GATEWAY_URL",base);}catch(e){}
