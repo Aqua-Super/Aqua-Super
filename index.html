@@ -1516,6 +1516,7 @@ function aquaImportOldBackup(){
   var DEL_KEY="AQUA_LIVE_SYNC_TOMBSTONES_V1";
   var DIRTY_KEY="AQUA_LIVE_SYNC_DIRTY_V1";
   var MASTER_FP_KEY="AQUA_LIVE_SYNC_MASTER_FP_V1";
+  var MASTER_DB_KEY="AQUA_LIVE_SYNC_MASTER_DB_V1";
   var busy=false,queued=false,pullBusy=false,pushTimer=null,syncRetryTimer=null;
   var revisionCheckCount=0;
 
@@ -1593,6 +1594,40 @@ function aquaImportOldBackup(){
 
   function aquaLiveCurrentFingerprint(){
     try{return aquaLiveFingerprint(db,window.__AQUA_LIVE_DELETED);}catch(e){return "";}
+  }
+
+  function aquaLiveHasLocalChanges(){
+    if(aquaLiveIsDirty())return true;
+    try{
+      var saved=localStorage.getItem(MASTER_FP_KEY)||"";
+      return !!saved && saved!==aquaLiveCurrentFingerprint();
+    }catch(e){return aquaLiveIsDirty();}
+  }
+
+  function aquaLiveRemoteContainsLocal(remote,localDb){
+    try{
+      if(!remote || !remote.db || !localDb)return false;
+      var rc={};
+      (remote.db.customers||[]).forEach(function(c){if(c.syncId)rc[c.syncId]=c;});
+      for(var i=0;i<(localDb.customers||[]).length;i++){
+        var c=localDb.customers[i],r=rc[c.syncId];
+        if(!r)return false;
+        var cu=Date.parse(c.updatedAt||"")||0,ru=Date.parse(r.updatedAt||"")||0;
+        if(ru<cu)return false;
+      }
+      var re={};
+      (remote.db.entries||[]).forEach(function(e){if(e.syncId)re[e.syncId]=e;});
+      for(var j=0;j<(localDb.entries||[]).length;j++){
+        if(localDb.entries[j].syncId && !re[localDb.entries[j].syncId])return false;
+      }
+      var lm=remote.meta||{deletedCustomers:{},deletedEntries:{}};
+      var ld=window.__AQUA_LIVE_DELETED||{deletedCustomers:{},deletedEntries:{}};
+      var dc=ld.deletedCustomers||{},rcd=lm.deletedCustomers||{};
+      for(var ck in dc){if(Number(rcd[ck]||0)<Number(dc[ck]||0))return false;}
+      var de=ld.deletedEntries||{},red=lm.deletedEntries||{};
+      for(var ek in de){if(Number(red[ek]||0)<Number(de[ek]||0))return false;}
+      return true;
+    }catch(e){return false;}
   }
 
   function writeLocal(){
@@ -1683,7 +1718,10 @@ function aquaImportOldBackup(){
     if(typeof normalizeDB==="function")normalizeDB();
     writeLocal();
     localStorage.setItem(INIT_KEY,"1");
-    try{localStorage.setItem(MASTER_FP_KEY,aquaLiveCurrentFingerprint());}catch(e){}
+    try{
+      localStorage.setItem(MASTER_FP_KEY,aquaLiveCurrentFingerprint());
+      localStorage.setItem(MASTER_DB_KEY,JSON.stringify(db));
+    }catch(e){}
     aquaLiveSetDirty(false);
     aquaLiveSetTopStatus("ok","Synced • "+liveTimeLabel()+" • Rev "+Number(window.__AQUA_LIVE_REVISION||0));
 
@@ -1732,7 +1770,7 @@ function aquaImportOldBackup(){
 
       if(incoming>current){
         aquaLiveRevisionBusy=false;
-        if(aquaLiveIsDirty())aquaLivePost();
+        if(aquaLiveHasLocalChanges())aquaLivePost();
         else aquaLivePull(false);
         return;
       }
@@ -1795,7 +1833,8 @@ function aquaImportOldBackup(){
       var sameRevisionMismatch=verifySameRevision && incoming===current && (!savedFp || remoteFp!==savedFp);
 
       if(forceReload || incoming>current){
-        if(incoming>current && aquaLiveIsDirty()){
+        if(incoming>current && aquaLiveHasLocalChanges()){
+          window.__AQUA_LIVE_REVISION=incoming;
           aquaLivePost();
         }else{
           applyMaster(res,!!forceReload);
@@ -1879,12 +1918,20 @@ function aquaImportOldBackup(){
         var incoming=Number(res.revision||0)||0;
 
         if(incoming>baseRevision){
-          applyMaster(res,false);
-          aquaLiveSetTopStatus("ok","Synced • "+liveTimeLabel()+" • Rev "+incoming);
-          try{
-            if(typeof aquaDriveBackup==="function")aquaDriveBackup(true);
-          }catch(e){}
+          if(aquaLiveRemoteContainsLocal(res,db)){
+            applyMaster(res,false);
+            aquaLiveSetTopStatus("ok","Synced • "+liveTimeLabel()+" • Rev "+incoming);
+            try{
+              if(typeof aquaDriveBackup==="function")aquaDriveBackup(true);
+            }catch(e){}
+            finishPush();
+            return;
+          }
+          window.__AQUA_LIVE_REVISION=incoming;
+          aquaLiveSetTopStatus("sync","Merging latest changes...");
           finishPush();
+          aquaLiveSetDirty(true);
+          aquaLiveScheduleRetry(800);
           return;
         }
 
