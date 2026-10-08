@@ -664,7 +664,14 @@ function message(e,c){
  lines.push("Aaj ka Amount: "+money(e.amount));
  lines.push("Previous "+balanceLabel(e.previousDue)+": "+balanceMoney(e.previousDue));
  if(e.paid>0) lines.push("Aaj Payment Received: "+money(e.paid));
- lines.push("Total "+balanceLabel(s.due)+": "+balanceMoney(s.due));
+ var messageTotalDue;
+ if(e.previousDue!==undefined && e.previousDue!==null && e.previousDue!==""){
+   messageTotalDue=Number(e.previousDue)||0;
+   messageTotalDue+=(Number(e.amount)||0)-(Number(e.paid)||0);
+ }else{
+   messageTotalDue=Number(s.due)||0;
+ }
+ lines.push("Total "+balanceLabel(messageTotalDue)+": "+balanceMoney(messageTotalDue));
  lines.push("");
  lines.push("Thank You.");
  return lines.join("\n");
