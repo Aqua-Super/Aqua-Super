@@ -1533,7 +1533,7 @@ function aquaImportOldBackup(){
   var MASTER_FP_KEY="AQUA_LIVE_SYNC_MASTER_FP_V1";
   var MASTER_DB_KEY="AQUA_LIVE_SYNC_MASTER_DB_V1";
   var busy=false,queued=false,pullBusy=false,pushTimer=null,syncRetryTimer=null;
-  var revisionCheckCount=0;
+  var revisionCheckCount=0,pendingPull=false;
 
   function clone(x){
     try{return JSON.parse(JSON.stringify(x));}catch(e){return x;}
@@ -1766,7 +1766,10 @@ function aquaImportOldBackup(){
   var aquaLiveRetryToken=0;
 
   function aquaLiveCheckRevision(){
-    if(pullBusy || aquaLiveRevisionBusy)return;
+    /* Revision polling must continue even while a full GET is in flight.
+       Otherwise a slow initial pull can block the 3-second live loop for
+       minutes and prevent the other device from receiving updates. */
+    if(aquaLiveRevisionBusy)return;
 
     aquaLiveRevisionBusy=true;
     var token=++aquaLiveRetryToken;
@@ -1786,6 +1789,7 @@ function aquaImportOldBackup(){
       if(incoming>current){
         aquaLiveRevisionBusy=false;
         if(aquaLiveHasLocalChanges())aquaLivePost();
+        else if(pullBusy)pendingPull=true;
         else aquaLivePull(false);
         return;
       }
@@ -1867,6 +1871,12 @@ function aquaImportOldBackup(){
       console.log("Aqua Live Sync pull:",err&&err.message||err);
     }).finally(function(){
       pullBusy=false;
+      if(pendingPull){
+        pendingPull=false;
+        setTimeout(function(){
+          if(document.visibilityState==="visible")aquaLivePull(false);
+        },50);
+      }
     });
   }
 
