@@ -1945,19 +1945,28 @@ function aquaImportOldBackup(){
   /* The Gateway API key is the same key shown in the installed Aqua Super SMS Gateway app. */
   var GATEWAY_KEY="e86d408eabb74182";
   var DESKTOP_GATEWAY="http://192.168.29.158:8765";
-  var MOBILE_GATEWAY="http://192.168.29.158:8765";
+  var MOBILE_GATEWAY="http://127.0.0.1:8765";
+  var MOBILE_FALLBACK_GATEWAY="http://192.168.29.158:8765";
   var pending=null;
 
   function isMobile(){
     return /Android|iPhone|iPad|iPod/i.test(String(navigator.userAgent||""));
   }
-  function gatewayUrl(){
+  function gatewayUrls(){
+    var out=[];
     try{
       var saved=localStorage.getItem("AQUA_SMS_GATEWAY_URL");
-      if(saved && /^https?:\/\//i.test(saved))return saved.replace(/\/+$/,"");
+      if(saved && /^https?:\/\//i.test(saved))out.push(saved.replace(/\/+$/,""));
     }catch(e){}
-    return isMobile()?MOBILE_GATEWAY:DESKTOP_GATEWAY;
+    if(isMobile()){
+      out.push(MOBILE_GATEWAY);
+      out.push(MOBILE_FALLBACK_GATEWAY);
+    }else{
+      out.push(DESKTOP_GATEWAY);
+    }
+    return out.filter(function(v,i,a){return v && a.indexOf(v)===i;});
   }
+  function gatewayUrl(){return gatewayUrls()[0]||DESKTOP_GATEWAY;}
   function cleanPhone(x){
     return String(x||"").replace(/[^0-9+]/g,"");
   }
@@ -1974,18 +1983,25 @@ function aquaImportOldBackup(){
     modal.style.display="none";modal.setAttribute("aria-hidden","true");
   }
   async function sendDirect(phone,msg){
-    var base=gatewayUrl();
-    var body=new URLSearchParams();
-    body.set("key",GATEWAY_KEY);
-    body.set("phone",cleanPhone(phone));
-    body.set("message",String(msg||""));
-    var opts={method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()};
-    /* Chrome supports targetAddressSpace for secure pages talking to local-network services. */
-    try{opts.targetAddressSpace="local";}catch(e){}
-    var res=await fetch(base+"/",opts);
-    var data=await res.json();
-    if(!data || data.ok!==true)throw new Error(data&&data.error?data.error:"Gateway SMS failed");
-    return data;
+    var urls=gatewayUrls();
+    var lastErr=null;
+    for(var i=0;i<urls.length;i++){
+      var base=urls[i];
+      try{
+        var body=new URLSearchParams();
+        body.set("key",GATEWAY_KEY);
+        body.set("phone",cleanPhone(phone));
+        body.set("message",String(msg||""));
+        var opts={method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()};
+        try{opts.targetAddressSpace="local";}catch(e){}
+        var res=await fetch(base+"/",opts);
+        var data=await res.json();
+        if(!data || data.ok!==true)throw new Error(data&&data.error?data.error:"Gateway SMS failed");
+        try{localStorage.setItem("AQUA_SMS_GATEWAY_URL",base);}catch(e){}
+        return data;
+      }catch(err){lastErr=err;}
+    }
+    throw lastErr||new Error("Gateway connection failed");
   }
   async function confirmSend(){
     if(!pending)return;
