@@ -115,7 +115,7 @@ function aquaPaymentReminder(customer){
 </style>
 </head>
 <body>
-<div class="top"><h1>💧 Aqua Super</h1><p id="today"></p><div id="aquaDriveTopStatus" style="margin-top:10px;padding:9px 11px;border-radius:10px;background:#eff6ff;color:#075985;font-size:12px;font-weight:700;">☁️ Google Drive: Checking...</div></div><button id="aquaInstallBtn" type="button" style="display:none!important" aria-hidden="true">📲 Install App</button>
+<div class="top"><h1>💧 Aqua Super</h1><p id="today"></p><div id="aquaDriveTopStatus" style="margin-top:10px;padding:9px 11px;border-radius:10px;background:#eff6ff;color:#075985;font-size:12px;font-weight:700;">☁️ Google Drive: Checking...</div><div id="aquaLiveTopStatus" style="margin-top:6px;padding:8px 11px;border-radius:10px;background:#eff6ff;color:#075985;font-size:12px;font-weight:700;">🔄 Live Sync: Checking...</div></div><button id="aquaInstallBtn" type="button" style="display:none!important" aria-hidden="true">📲 Install App</button>
 <main id="main"></main>
 <nav>
 <button id="nHome" onclick="go('home')">🏠<br/>Home</button>
@@ -1180,7 +1180,7 @@ function aquaShowGoogleDriveRestore(){
 
     var out='<div style="padding:12px;border:1px solid #bfdbfe;border-radius:12px;background:#f8fbff">'+
       '<div style="font-weight:800;color:#075985;margin-bottom:8px">☁️ Google Drive Backups</div>'+
-      '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Jis date ka backup wapas lana hai uske saamne Restore dabayein.</div>';
+      '<div style="font-size:12px;color:#64748b;margin-bottom:8px">Jis date ka backup wapas lana hai uske saamne Restore dabayein. Restore ke baad Mobile + Laptop Live Master bhi update hoga.</div>';
 
     files.forEach(function(f){
       var safeId=encodeURIComponent(f.id);
@@ -1204,10 +1204,16 @@ function aquaRestoreGoogleDriveBackup(encodedFileId){
   var fileId=decodeURIComponent(encodedFileId||"");
   if(!fileId)return;
 
-  if(!confirm("Google Drive se ye Aqua Super backup restore karna hai?\\n\\nCurrent app data replace ho jayega. Pehle zaroori ho to normal backup download kar lein.")) return;
+  if(!confirm("Google Drive se ye Aqua Super backup restore karna hai?\\n\\nRestore ke baad ye data Mobile aur Laptop dono ke Live Master me bhi sync hoga. Current Live data replace ho jayega.")) return;
 
   var box=document.getElementById("aquaGoogleDriveRestoreList");
-  if(box) box.innerHTML='<div style="padding:12px;border-radius:10px;background:#eff6ff;color:#075985;font-size:13px;text-align:center">♻️ Google Drive backup restore ho raha hai...</div>';
+  if(box) box.innerHTML='<div style="padding:12px;border-radius:10px;background:#eff6ff;color:#075985;font-size:13px;text-align:center">♻️ Backup restore + Live Sync ho raha hai...</div>';
+
+  var previousDb;
+  try{previousDb=JSON.parse(JSON.stringify(db));}catch(e){previousDb={customers:[],entries:[]};}
+
+  // Keep the current local state as a safety backup before replacing it.
+  try{if(typeof aquaDriveBackup==="function")aquaDriveBackup(true);}catch(e){}
 
   var cb="aquaDriveGet_"+Date.now();
   var url=AQUA_BACKUP_WEB_APP_URL+"?action=get&fileId="+encodeURIComponent(fileId);
@@ -1228,12 +1234,24 @@ function aquaRestoreGoogleDriveBackup(encodedFileId){
       throw new Error("Ye valid Aqua Super backup nahi hai.");
     }
 
-    db=x;
+    db=clone(x);
+    ensureClientIds();
     localStorage.setItem(KEY,JSON.stringify(db));
 
-    alert("✅ Google Drive backup restore ho gaya.\\n\\nCustomers: "+db.customers.length+"\\nEntries: "+db.entries.length);
-    location.reload();
+    if(typeof aquaLiveRestoreMaster!=="function"){
+      throw new Error("Live Sync restore function available nahi hai.");
+    }
+
+    aquaLiveRestoreMaster(db,previousDb,function(){
+      alert("✅ Backup restore + Live Sync ho gaya.\\n\\nCustomers: "+db.customers.length+"\\nEntries: "+db.entries.length);
+      location.reload();
+    },function(err){
+      if(box) box.innerHTML='<div style="padding:12px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px">Restore Sync nahi ho saka.<br>'+esc(err.message||err)+'</div>';
+      alert("Backup restore hua tha, lekin Live Sync confirm nahi hua.\\n\\n"+(err.message||err)+"\\n\\nPurana local data wapas rakha gaya hai.");
+    });
   }).catch(function(err){
+    db=previousDb;
+    try{localStorage.setItem(KEY,JSON.stringify(db));}catch(e){}
     if(box) box.innerHTML='<div style="padding:12px;border-radius:10px;background:#fef2f2;color:#b91c1c;font-size:13px">Restore nahi ho saka.<br>'+esc(err.message||err)+'</div>';
     alert("Google Drive restore nahi ho saka.\\n\\n"+(err.message||err));
   });
@@ -1448,6 +1466,25 @@ function aquaImportOldBackup(){
     try{return JSON.parse(JSON.stringify(x));}catch(e){return x;}
   }
 
+  function aquaLiveSetTopStatus(state,message){
+    var box=document.getElementById("aquaLiveTopStatus");
+    if(!box)return;
+    var m={
+      sync:["#eff6ff","#075985","🔄 Live Sync: "+message],
+      ok:["#f0fdf4","#166534","🟢 Live Sync: "+message],
+      err:["#fef2f2","#b91c1c","🔴 Live Sync: "+message],
+      wait:["#fffbeb","#92400e","🟠 Live Sync: "+message]
+    };
+    var x=m[state]||m.wait;
+    box.style.background=x[0];
+    box.style.color=x[1];
+    box.textContent=x[2];
+  }
+
+  function liveTimeLabel(){
+    return new Date().toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true});
+  }
+
   function uid(){
     try{
       if(window.crypto && typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();
@@ -1550,6 +1587,7 @@ function aquaImportOldBackup(){
     if(typeof normalizeDB==="function")normalizeDB();
     writeLocal();
     localStorage.setItem(INIT_KEY,"1");
+    aquaLiveSetTopStatus("ok","Synced • "+liveTimeLabel()+" • Rev "+Number(window.__AQUA_LIVE_REVISION||0));
 
     if(forceReload){
       setTimeout(function(){location.reload();},250);
@@ -1575,6 +1613,7 @@ function aquaImportOldBackup(){
   function aquaLivePull(forceReload){
     if(pullBusy)return;
     pullBusy=true;
+    aquaLiveSetTopStatus("sync","Checking...");
 
     aquaLiveJsonp(LIVE_URL+"?action=get",30000).then(function(res){
       if(!res || res.ok===false)throw new Error(res&&res.error?res.error:"Live Master read failed");
@@ -1587,8 +1626,11 @@ function aquaImportOldBackup(){
       }else if(!localStorage.getItem(INIT_KEY)){
         applyMaster(res,true);
         return;
+      }else{
+        aquaLiveSetTopStatus("ok","Already synced • "+liveTimeLabel()+" • Rev "+current);
       }
     }).catch(function(err){
+      aquaLiveSetTopStatus("wait","Retrying");
       console.log("Aqua Live Sync pull:",err&&err.message||err);
     }).finally(function(){
       pullBusy=false;
@@ -1596,6 +1638,7 @@ function aquaImportOldBackup(){
   }
 
   function aquaLivePost(){
+    aquaLiveSetTopStatus("sync","Saving...");
     if(busy){
       queued=true;
       return;
@@ -1654,6 +1697,7 @@ function aquaImportOldBackup(){
 
         if(incoming>baseRevision){
           applyMaster(res,false);
+          aquaLiveSetTopStatus("ok","Synced • "+liveTimeLabel()+" • Rev "+incoming);
           try{
             if(typeof aquaDriveBackup==="function")aquaDriveBackup(true);
           }catch(e){}
@@ -1666,12 +1710,14 @@ function aquaImportOldBackup(){
           return;
         }
 
+        aquaLiveSetTopStatus("wait","Waiting for server...");
         console.log("Aqua Live Sync: master revision did not advance; local data kept.");
         finishPush();
       }).catch(function(err){
         if(Date.now()-started<30000){
           setTimeout(function(){waitForMaster(attempt+1);},1500);
         }else{
+          aquaLiveSetTopStatus("err","Sync failed • Local data kept");
           console.log("Aqua Live Sync push/pull:",err&&err.message||err);
           finishPush();
         }
@@ -1682,6 +1728,94 @@ function aquaImportOldBackup(){
       try{form.remove();iframe.remove();}catch(e){}
       waitForMaster(0);
     },2500);
+  }
+
+  function aquaLiveRestoreMaster(restoredDb,previousDb,done,fail){
+    if(!restoredDb || !Array.isArray(restoredDb.customers) || !Array.isArray(restoredDb.entries)){
+      if(fail)fail(new Error("Restore database invalid"));
+      return;
+    }
+
+    if(busy){
+      if(fail)fail(new Error("Live Sync is busy. Please try Restore again."));
+      return;
+    }
+
+    busy=true;
+    var baseRevision=Number(window.__AQUA_LIVE_REVISION||0)||0;
+    var started=Date.now();
+    aquaLiveSetTopStatus("sync","Restoring to Master...");
+
+    ensureClientIds();
+    var payload=JSON.stringify({
+      mode:"restore",
+      db:restoredDb,
+      revision:baseRevision,
+      deletedCustomers:{},
+      deletedEntries:{}
+    });
+
+    var iframe=document.createElement("iframe");
+    iframe.name="aquaLiveRestoreFrame_"+Date.now();
+    iframe.style.display="none";
+    document.body.appendChild(iframe);
+
+    var form=document.createElement("form");
+    form.method="POST";
+    form.action=LIVE_URL;
+    form.target=iframe.name;
+    form.style.display="none";
+
+    var data=document.createElement("textarea");
+    data.name="data";
+    data.value=payload;
+    data.style.display="none";
+    form.appendChild(data);
+    document.body.appendChild(form);
+
+    try{form.submit();}catch(e){}
+
+    function finish(ok,err){
+      try{form.remove();iframe.remove();}catch(e){}
+      busy=false;
+      if(ok){
+        aquaLiveSetTopStatus("ok","Restored + Synced • "+liveTimeLabel());
+        if(done)done();
+      }else{
+        db=clone(previousDb);
+        writeLocal();
+        aquaLiveSetTopStatus("err","Restore Sync failed • Data kept");
+        if(fail)fail(err||new Error("Restore Sync failed"));
+      }
+    }
+
+    function poll(){
+      aquaLiveJsonp(LIVE_URL+"?action=get",30000).then(function(res){
+        if(!res || res.ok===false)throw new Error(res&&res.error?res.error:"Live Master read failed");
+        var incoming=Number(res.revision||0)||0;
+
+        if(incoming>baseRevision){
+          applyMaster(res,false);
+          finish(true);
+          return;
+        }
+
+        if(Date.now()-started<30000){
+          setTimeout(poll,1500);
+          return;
+        }
+
+        finish(false,new Error("Live Master did not confirm restore."));
+      }).catch(function(err){
+        if(Date.now()-started<30000){
+          setTimeout(poll,1500);
+        }else{
+          finish(false,err);
+        }
+      });
+    }
+
+    setTimeout(poll,2500);
   }
 
   function queuePush(){
