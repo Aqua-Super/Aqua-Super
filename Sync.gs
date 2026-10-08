@@ -7,6 +7,8 @@ function doGet(e) {
 
   if (action === "get") {
     result = getMaster_();
+  } else if (action === "revision") {
+    result = getRevision_();
   } else if (action === "seedLatest") {
     result = seedLatestBackup_();
   } else {
@@ -249,6 +251,27 @@ function getMaster_() {
           ? obj.meta.deletedEntries
           : {}
     }
+  };
+}
+
+function getRevision_() {
+  var file = findMaster_();
+
+  if (!file) {
+    return {
+      ok: true,
+      revision: 0,
+      updatedAt: null
+    };
+  }
+
+  var text = file.getBlob().getDataAsString() || "{}";
+  var obj = JSON.parse(text);
+
+  return {
+    ok: true,
+    revision: Number(obj.revision) || 0,
+    updatedAt: obj.updatedAt || null
   };
 }
 
