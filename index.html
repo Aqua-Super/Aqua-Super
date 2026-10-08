@@ -2050,9 +2050,13 @@ function aquaImportOldBackup(){
     sendBtn.disabled=true;sendBtn.textContent="⏳ Sending...";
     try{
       await sendDirect(p.phone,p.message);
-      closePreview();
+      sendBtn.textContent="✅ Sent";
+      sendBtn.disabled=true;
       if(typeof p.onOk==="function")p.onOk();
-      alert("✅ SMS successfully sent.");
+      setTimeout(function(){
+        closePreview();
+        alert("✅ SMS successfully sent.");
+      },700);
     }catch(err){
       sendBtn.disabled=false;sendBtn.textContent="✅ OK & Send SMS";
       alert("❌ SMS send nahi hua.\n\nGateway check karein:\n"+gatewayUrl()+"\n\n"+(err&&err.message?err.message:"Connection failed"));
