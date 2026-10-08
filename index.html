@@ -1789,35 +1789,28 @@ function aquaImportOldBackup(){
       }
 
       revisionCheckCount++;
-      if(revisionCheckCount%5===0){
-        aquaLiveRevisionBusy=false;
-        aquaLivePull(false,true);
-        return;
-      }
-
+      /* The revision endpoint is enough for the normal live loop.
+         Do NOT perform a full GET every 5th poll: that caused the UI to
+         repeatedly flash Checking/Retrying even while sync was healthy. */
+      revisionCheckCount++;
       aquaLiveRevisionBusy=false;
-      aquaLiveSetTopStatus("ok","Up to date • "+liveTimeLabel()+" • Rev "+current);
+      aquaLiveSetTopStatus("ok","Connected • Rev "+current);
     }).catch(function(err){
       if(token!==aquaLiveRetryToken)return;
 
       aquaLiveRevisionBusy=false;
-      aquaLiveSetTopStatus("wait","Checking connection...");
-      console.log("Aqua Live Sync revision:",err&&err.message||err);
+      /* Keep the Live Sync indicator stable. A temporary network miss is
+         handled silently in the background; local data is never discarded. */
+      console.log("Aqua Live Sync revision check:",err&&err.message||err);
 
       if(aquaLiveRetryTimer)clearTimeout(aquaLiveRetryTimer);
 
-      /* If the lightweight revision endpoint misses, immediately try the
-         full Live Master read once. This avoids getting stuck in a retry loop. */
-      if(document.visibilityState==="visible" && !pullBusy){
-        aquaLivePull(false,true);
-      }
-
-      if(aquaLiveIsDirty())aquaLiveScheduleRetry(5000);
+      if(aquaLiveIsDirty())aquaLiveScheduleRetry(3000);
 
       aquaLiveRetryTimer=setTimeout(function(){
         aquaLiveRetryTimer=null;
         if(document.visibilityState==="visible")aquaLiveCheckRevision();
-      },5000);
+      },3000);
     });
   }
 
@@ -1864,7 +1857,8 @@ function aquaImportOldBackup(){
         aquaLiveSetTopStatus("ok","Already synced • "+liveTimeLabel()+" • Rev "+current);
       }
     }).catch(function(err){
-      aquaLiveSetTopStatus("wait","Retrying");
+      /* Pull failures are transient. Keep the last known Connected state
+         visible instead of flashing Retrying over the dashboard. */
       console.log("Aqua Live Sync pull:",err&&err.message||err);
     }).finally(function(){
       pullBusy=false;
@@ -1872,7 +1866,9 @@ function aquaImportOldBackup(){
   }
 
   function aquaLivePost(){
-    aquaLiveSetTopStatus("sync","Saving...");
+    /* Sync runs in the background. Keep the indicator as a stable
+       connection state instead of showing Saving on every small operation. */
+    aquaLiveSetTopStatus("ok","Connected • Syncing in background");
     if(busy){
       queued=true;
       return;
@@ -1992,10 +1988,10 @@ function aquaImportOldBackup(){
           return;
         }
 
-        aquaLiveSetTopStatus("wait","Waiting for server...");
+        aquaLiveSetTopStatus("ok","Connected • Waiting for server");
         console.log("Aqua Live Sync: master revision did not advance; local data kept.");
         finishPush();
-        aquaLiveScheduleRetry(5000);
+        aquaLiveScheduleRetry(3000);
       }).catch(function(err){
         if(Date.now()-started<30000){
           setTimeout(function(){waitForMaster(attempt+1);},700);
