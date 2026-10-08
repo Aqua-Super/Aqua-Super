@@ -1635,6 +1635,23 @@ function aquaImportOldBackup(){
     }catch(e){}
   }
 
+  function aquaLiveCheckRevision(){
+    if(pullBusy)return;
+    aquaLiveJsonp(LIVE_URL+"?action=revision",10000).then(function(res){
+      if(!res || res.ok===false)throw new Error(res&&res.error?res.error:"Live revision read failed");
+      var incoming=Number(res.revision||0)||0;
+      var current=Number(window.__AQUA_LIVE_REVISION||0)||0;
+      if(incoming>current){
+        aquaLivePull(false);
+      }else{
+        aquaLiveSetTopStatus("ok","Up to date • "+liveTimeLabel()+" • Rev "+current);
+      }
+    }).catch(function(err){
+      aquaLiveSetTopStatus("wait","Retrying");
+      console.log("Aqua Live Sync revision:",err&&err.message||err);
+    });
+  }
+
   function aquaLivePull(forceReload){
     if(pullBusy)return;
     pullBusy=true;
@@ -1731,7 +1748,7 @@ function aquaImportOldBackup(){
         }
 
         if(Date.now()-started<30000){
-          setTimeout(function(){waitForMaster(attempt+1);},1500);
+          setTimeout(function(){waitForMaster(attempt+1);},700);
           return;
         }
 
@@ -1740,7 +1757,7 @@ function aquaImportOldBackup(){
         finishPush();
       }).catch(function(err){
         if(Date.now()-started<30000){
-          setTimeout(function(){waitForMaster(attempt+1);},1500);
+          setTimeout(function(){waitForMaster(attempt+1);},700);
         }else{
           aquaLiveSetTopStatus("err","Sync failed • Local data kept");
           console.log("Aqua Live Sync push/pull:",err&&err.message||err);
@@ -1752,7 +1769,7 @@ function aquaImportOldBackup(){
     setTimeout(function(){
       try{form.remove();iframe.remove();}catch(e){}
       waitForMaster(0);
-    },2500);
+    },700);
   }
 
   function aquaLiveRestoreMaster(restoredDb,previousDb,done,fail){
@@ -1910,8 +1927,8 @@ function aquaImportOldBackup(){
   window.addEventListener("focus",function(){aquaLivePull(false);});
 
   setInterval(function(){
-    if(document.visibilityState==="visible")aquaLivePull(false);
-  },120000);
+    if(document.visibilityState==="visible")aquaLiveCheckRevision();
+  },3000);
 
   if(document.readyState==="loading"){
     document.addEventListener("DOMContentLoaded",function(){setTimeout(start,800);});
