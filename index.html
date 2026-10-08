@@ -1688,14 +1688,21 @@ function aquaImportOldBackup(){
       if(token!==aquaLiveRetryToken)return;
 
       aquaLiveRevisionBusy=false;
-      aquaLiveSetTopStatus("wait","Retrying in 3s...");
+      aquaLiveSetTopStatus("wait","Checking connection...");
       console.log("Aqua Live Sync revision:",err&&err.message||err);
 
       if(aquaLiveRetryTimer)clearTimeout(aquaLiveRetryTimer);
+
+      /* If the lightweight revision endpoint misses, immediately try the
+         full Live Master read once. This avoids getting stuck in a retry loop. */
+      if(document.visibilityState==="visible" && !pullBusy){
+        aquaLivePull(false);
+      }
+
       aquaLiveRetryTimer=setTimeout(function(){
         aquaLiveRetryTimer=null;
         if(document.visibilityState==="visible")aquaLiveCheckRevision();
-      },3000);
+      },5000);
     });
   }
 
