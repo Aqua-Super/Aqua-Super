@@ -1653,23 +1653,48 @@ function aquaImportOldBackup(){
     }catch(e){}
   }
 
+  var aquaLiveRevisionBusy=false;
+  var aquaLiveRetryTimer=null;
+  var aquaLiveRetryToken=0;
+
   function aquaLiveCheckRevision(){
-    if(pullBusy)return;
+    if(pullBusy || aquaLiveRevisionBusy)return;
+
+    aquaLiveRevisionBusy=true;
+    var token=++aquaLiveRetryToken;
+
     aquaLiveJsonp(LIVE_URL+"?action=revision",5000).then(function(res){
+      if(token!==aquaLiveRetryToken)return;
       if(!res || res.ok===false)throw new Error(res&&res.error?res.error:"Live revision read failed");
+
+      if(aquaLiveRetryTimer){
+        clearTimeout(aquaLiveRetryTimer);
+        aquaLiveRetryTimer=null;
+      }
+
       var incoming=Number(res.revision||0)||0;
       var current=Number(window.__AQUA_LIVE_REVISION||0)||0;
+
       if(incoming>current){
+        aquaLiveRevisionBusy=false;
         aquaLivePull(false);
-      }else{
-        aquaLiveSetTopStatus("ok","Up to date • "+liveTimeLabel()+" • Rev "+current);
+        return;
       }
+
+      aquaLiveRevisionBusy=false;
+      aquaLiveSetTopStatus("ok","Up to date • "+liveTimeLabel()+" • Rev "+current);
     }).catch(function(err){
-      aquaLiveSetTopStatus("wait","Retrying in 1s...");
+      if(token!==aquaLiveRetryToken)return;
+
+      aquaLiveRevisionBusy=false;
+      aquaLiveSetTopStatus("wait","Retrying in 3s...");
       console.log("Aqua Live Sync revision:",err&&err.message||err);
-      setTimeout(function(){
+
+      if(aquaLiveRetryTimer)clearTimeout(aquaLiveRetryTimer);
+      aquaLiveRetryTimer=setTimeout(function(){
+        aquaLiveRetryTimer=null;
         if(document.visibilityState==="visible")aquaLiveCheckRevision();
-      },1000);
+      },3000);
     });
   }
 
