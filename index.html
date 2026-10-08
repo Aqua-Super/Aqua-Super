@@ -132,7 +132,7 @@ function aquaPaymentReminder(customer){
       "Payment karne ke baad please hume inform kar dein.\n\n" +
       "Thank you – Aqua Super";
     var url="https://wa.me/91"+String(phone).replace(/\D/g,"")+"?text="+encodeURIComponent(msg);
-    if(confirm(msg+"\n\nWhatsApp kholen?")) window.open(url,"_blank");
+    if(confirm(msg+"\n\nWhatsApp kholen?")){ var waTarget=/Android|iPhone|iPad|iPod/i.test(String(navigator.userAgent||""))?"_blank":"AQUA_WHATSAPP_WEB"; window.open(url,waTarget); }
   }catch(e){
     alert("Payment reminder banane mein problem hui.");
   }
@@ -811,7 +811,7 @@ function confirmWASend(){
 
  if(!isMobile){
    var desktopUrl="https://web.whatsapp.com/send?phone="+phone+"&text="+text;
-   window.open(desktopUrl,"_blank");
+   window.open(desktopUrl,"AQUA_WHATSAPP_WEB");
    return;
  }
 
