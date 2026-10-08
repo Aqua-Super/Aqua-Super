@@ -1950,17 +1950,29 @@ function aquaImportOldBackup(){
   var oldDeleteCustomer=window.deleteCustomerByName;
   if(typeof oldDeleteCustomer==="function"){
     window.deleteCustomerByName=function(encodedName){
+      var name=typeof dec==="function"?dec(encodedName):String(encodedName||"");
+      var before=null;
       try{
-        var name=typeof dec==="function"?dec(encodedName):String(encodedName||"");
         var c=typeof cget==="function"?cget(name):null;
         if(c){
-          var copy=clone(c);
-          var entries=(db.entries||[]).filter(function(e){return e.name===name;}).map(clone);
-          copy.__entriesForDelete=entries;
-          markCustomerDelete(copy);
+          before=clone(c);
+          before.__entriesForDelete=(db.entries||[]).filter(function(e){return e.name===name;}).map(clone);
         }
       }catch(e){}
-      return oldDeleteCustomer.apply(this,arguments);
+
+      var out=oldDeleteCustomer.apply(this,arguments);
+
+      /* Only create the tombstone after the original delete is confirmed.
+         Then push once more so a customer deleted on one device cannot
+         reappear from the Live Master on another device. */
+      try{
+        if(before && !cget(name)){
+          markCustomerDelete(before);
+          clearTimeout(pushTimer);
+          pushTimer=setTimeout(aquaLivePost,100);
+        }
+      }catch(e){console.error("Aqua Live Sync delete",e);}
+      return out;
     };
   }
 
