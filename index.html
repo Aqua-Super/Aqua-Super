@@ -1775,7 +1775,7 @@ function aquaImportOldBackup(){
       var remoteMeta=res.meta||{deletedCustomers:{},deletedEntries:{}};
       var remoteFp=aquaLiveFingerprint(res.db,remoteMeta);
       var savedFp=localStorage.getItem(MASTER_FP_KEY)||"";
-      var sameRevisionMismatch=verifySameRevision && incoming===current && savedFp && remoteFp!==savedFp;
+      var sameRevisionMismatch=verifySameRevision && incoming===current && (!savedFp || remoteFp!==savedFp);
 
       if(forceReload || incoming>current){
         if(incoming>current && aquaLiveIsDirty()){
@@ -2059,10 +2059,10 @@ function aquaImportOldBackup(){
   }
 
   document.addEventListener("visibilitychange",function(){
-    if(document.visibilityState==="visible")aquaLivePull(false);
+    if(document.visibilityState==="visible")aquaLivePull(false,true);
   });
 
-  window.addEventListener("focus",function(){aquaLivePull(false);});
+  window.addEventListener("focus",function(){aquaLivePull(false,true);});
 
   setInterval(function(){
     if(document.visibilityState==="visible")aquaLiveCheckRevision();
