@@ -745,6 +745,19 @@ function confirmWASend(){
  var text=encodeURIComponent(pendingWA.reminderText || (pendingWA.reminder ? paymentReminderMessage(pendingWA.c) : message(pendingWA.e,pendingWA.c)));
  var phone=pendingWA.phone;
  document.getElementById("waModal").style.display="none";
+
+ // Desktop/Laptop: use WhatsApp Web URL so the installed Chrome WhatsApp PWA
+ // can capture/open the link if Chrome has link-capturing enabled.
+ // Mobile: keep the existing WhatsApp Business deep-link behavior unchanged.
+ var ua=String(navigator.userAgent||"");
+ var isMobile=/Android|iPhone|iPad|iPod/i.test(ua);
+
+ if(!isMobile){
+   var desktopUrl="https://web.whatsapp.com/send?phone="+phone+"&text="+text;
+   window.open(desktopUrl,"_blank");
+   return;
+ }
+
  var url="intent://send?phone="+phone+"&text="+text+"#Intent;scheme=whatsapp;package=com.whatsapp.w4b;end";
  location.href=url;
  setTimeout(function(){
