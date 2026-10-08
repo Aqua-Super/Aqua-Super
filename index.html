@@ -1887,25 +1887,46 @@ function aquaImportOldBackup(){
       deletedEntries:deleted.deletedEntries||{}
     });
 
-    var iframe=document.createElement("iframe");
-    iframe.name="aquaLiveSyncFrame_"+Date.now();
-    iframe.style.display="none";
-    document.body.appendChild(iframe);
+    /* Mobile/PWA-safe cross-origin POST. Apps Script accepts this simple
+       form-encoded request without a CORS preflight; confirmation still
+       comes from the existing Live Master revision polling below. */
+    var postBody="data="+encodeURIComponent(payload);
+    var postSent=false;
+    try{
+      if(typeof fetch==="function"){
+        fetch(LIVE_URL,{
+          method:"POST",
+          mode:"no-cors",
+          headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
+          body:postBody,
+          keepalive:true
+        }).then(function(){postSent=true;}).catch(function(){});
+      }
+    }catch(e){}
 
-    var form=document.createElement("form");
-    form.method="POST";
-    form.action=LIVE_URL;
-    form.target=iframe.name;
-    form.style.display="none";
+    /* Older browsers fallback to the existing hidden-form transport. */
+    if(typeof fetch!=="function"){
+      try{
+        var iframe=document.createElement("iframe");
+        iframe.name="aquaLiveSyncFrame_"+Date.now();
+        iframe.style.display="none";
+        document.body.appendChild(iframe);
 
-    var data=document.createElement("textarea");
-    data.name="data";
-    data.value=payload;
-    data.style.display="none";
-    form.appendChild(data);
+        var form=document.createElement("form");
+        form.method="POST";
+        form.action=LIVE_URL;
+        form.target=iframe.name;
+        form.style.display="none";
 
-    document.body.appendChild(form);
-    try{form.submit();}catch(e){}
+        var data=document.createElement("textarea");
+        data.name="data";
+        data.value=payload;
+        data.style.display="none";
+        form.appendChild(data);
+        document.body.appendChild(form);
+        form.submit();
+      }catch(e){}
+    }
 
     var baseRevision=Number(window.__AQUA_LIVE_REVISION||0)||0;
     var started=Date.now();
