@@ -30,6 +30,7 @@ function doPost(e) {
     var clientRevision = Number(body.revision) || 0;
     var deletedCustomers = body.deletedCustomers || {};
     var deletedEntries = body.deletedEntries || {};
+    var mode = String(body.mode || "merge");
 
     if (!clientDb ||
         !Array.isArray(clientDb.customers) ||
@@ -45,6 +46,37 @@ function doPost(e) {
 
     try {
       var master = getMaster_();
+
+      // A restore is intentional replacement, not a merge.
+      // This is used only by the app's existing Google Drive Restore action.
+      if (mode === "restore") {
+        var restored = ensureIds_(
+          normalize_(JSON.parse(JSON.stringify(clientDb)))
+        );
+
+        var restoredNext = {
+          revision: Number(master.revision || 0) + 1,
+          updatedAt: new Date().toISOString(),
+          db: restored,
+          meta: {
+            deletedCustomers: {},
+            deletedEntries: {}
+          }
+        };
+
+        writeMaster_(restoredNext);
+
+        return output_({
+          ok: true,
+          mode: "restore",
+          revision: restoredNext.revision,
+          updatedAt: restoredNext.updatedAt,
+          db: restoredNext.db,
+          meta: restoredNext.meta,
+          clientRevision: clientRevision
+        }, p.callback || "");
+      }
+
       var merged = mergeDb_(master.db, clientDb);
 
       var meta = {
