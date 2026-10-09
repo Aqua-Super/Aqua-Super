@@ -1927,6 +1927,17 @@ function aquaImportOldBackup(){
         return;
       }
 
+      if(incoming<current){
+        /* The server revision can legitimately be lower than this device's
+           saved local revision after a previous sync history mismatch.
+           Run the existing fingerprint-safe reconciliation path instead of
+           displaying the stale local revision forever. */
+        aquaLiveRevisionBusy=false;
+        if(pullBusy)pendingPull=true;
+        else aquaLivePull(false,true);
+        return;
+      }
+
       revisionCheckCount++;
       /* The revision endpoint is enough for the normal live loop.
          Do NOT perform a full GET every 5th poll: that caused the UI to
