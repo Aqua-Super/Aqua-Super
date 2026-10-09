@@ -1990,7 +1990,12 @@ function aquaImportOldBackup(){
         return;
       }else if(verifySameRevision && incoming<=current && localFingerprintMismatch && !remoteFingerprintMismatch){
         /* Only local data changed since the last confirmed master snapshot.
-           Push it even if the server revision has moved backwards. */
+           If the server revision moved backwards but its data still matches
+           the saved baseline, rebase the local revision before pushing. */
+        if(incoming<current){
+          window.__AQUA_LIVE_REVISION=incoming;
+          writeLocal();
+        }
         aquaLivePost();
       }else if(verifySameRevision && incoming<current && remoteFingerprintMismatch){
         /* Server revision is lower than this device's saved revision and the
