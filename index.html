@@ -2178,6 +2178,16 @@ function aquaImportOldBackup(){
           return;
         }
 
+        /* An idempotent server response may keep the same revision when the
+           merged database is unchanged. If that Master already contains this
+           device's data, finish successfully instead of retrying forever. */
+        if(incoming===baseRevision && aquaLiveRemoteContainsLocal(res,db)){
+          applyMaster(res,false);
+          aquaLiveSetTopStatus("ok","Synced • "+liveTimeLabel()+" • Rev "+incoming);
+          finishPush();
+          return;
+        }
+
         if(Date.now()-started<30000){
           setTimeout(function(){waitForMaster(attempt+1);},700);
           return;
