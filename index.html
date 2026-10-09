@@ -138,10 +138,11 @@ function aquaPaymentReminder(customer){
       "Aapse request hai ki please apna pending payment convenient time par kar dein.\n" +
       "Payment karne ke baad please hume inform kar dein.\n\n" +
       "Thank you – Aqua Super";
-    var isMobile=/Android|iPhone|iPad|iPod/i.test(String(navigator.userAgent||""));
-    var cleanPhone=String(phone).replace(/\D/g,"");
-    var url=isMobile?"https://wa.me/91"+cleanPhone+"?text="+encodeURIComponent(msg):"https://web.whatsapp.com/send?phone="+cleanPhone+"&text="+encodeURIComponent(msg);
-    if(confirm(msg+"\n\nWhatsApp kholen?")){ window.open(url,isMobile?"_blank":"AQUA_WHATSAPP_WEB"); }
+    var cleanPhone=normalizeIndiaNumber(phone);
+    if(cleanPhone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
+    pendingWA={e:null,c:{name:name,mobile:phone},phone:cleanPhone,reminder:true,reminderText:msg};
+    aquaSetWAPreviewText(msg);
+    document.getElementById("waModal").style.display="flex";
   }catch(e){
     alert("Payment reminder banane mein problem hui.");
   }
@@ -775,7 +776,7 @@ function sendWaterReminderWA(encodedName){
   if(days<8){alert("Is customer ko 8+ din ka No Water Alert nahi hai.");return;}
   var phone=normalizeIndiaNumber(c.mobile); if(phone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
   pendingWA={e:null,c:c,phone:phone,reminderText:waterReminderMessage(c,days)};
-  document.getElementById("waPreviewText").textContent=waterReminderMessage(c,days);
+  aquaSetWAPreviewText(waterReminderMessage(c,days));
   document.getElementById("waModal").style.display="flex";
  }catch(err){alert("WhatsApp reminder open nahi ho saka: "+err.message);}
 }
@@ -798,7 +799,7 @@ function sendPaymentReminder(encodedName){
  var s=stat(c); if(s.due<=0){alert("Is customer ka koi due amount nahi hai.");return;}
  var phone=normalizeIndiaNumber(c.mobile); if(phone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
  pendingWA={e:null,c:c,phone:phone,reminder:true};
- document.getElementById("waPreviewText").textContent=paymentReminderMessage(c);
+ aquaSetWAPreviewText(paymentReminderMessage(c));
  document.getElementById("waModal").style.display="flex";
 }
 function normalizeIndiaNumber(raw){
@@ -840,17 +841,24 @@ function sendLatestSMS(encodedName){
   sendSMS(es[es.length-1],c);
  }catch(err){alert("SMS open nahi ho saka: "+err.message);}
 }
+function aquaSetWAPreviewText(text){
+ var field=document.getElementById("waPreviewText");
+ if(field)field.value=String(text||"");
+}
 function sendWA(e,c){
  var phone=normalizeIndiaNumber(c.mobile);
  if(phone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
  pendingWA={e:e,c:c,phone:phone};
- document.getElementById("waPreviewText").textContent=message(e,c);
+ aquaSetWAPreviewText(message(e,c));
  document.getElementById("waModal").style.display="flex";
 }
 function closeWAPreview(){document.getElementById("waModal").style.display="none";pendingWA=null}
 function confirmWASend(){
  if(!pendingWA)return;
- var text=encodeURIComponent(pendingWA.reminderText || (pendingWA.reminder ? paymentReminderMessage(pendingWA.c) : message(pendingWA.e,pendingWA.c)));
+ var editor=document.getElementById("waPreviewText");
+ var editedText=editor?String(editor.value||""):String(pendingWA.reminderText || (pendingWA.reminder ? paymentReminderMessage(pendingWA.c) : message(pendingWA.e,pendingWA.c)));
+ if(!editedText.trim()){alert("WhatsApp message khali nahi ho sakta.");return;}
+ var text=encodeURIComponent(editedText);
  var phone=pendingWA.phone;
  document.getElementById("waModal").style.display="none";
 
@@ -1409,7 +1417,7 @@ function aquaImportOldBackup(){
 <button onclick="closeWAPreview()" style="width:auto;padding:4px 10px;background:#eef2f5;color:#334155;font-size:20px">×</button>
 </div>
 <div style="padding:16px;background:#f7fafc">
-<div id="waPreviewText" style="background:#e7f8e8;border-radius:14px;padding:16px;white-space:pre-wrap;font-size:15px;line-height:1.55"></div>
+<textarea id="waPreviewText" aria-label="WhatsApp message editable" style="display:block;width:100%;min-height:240px;max-height:48vh;overflow:auto;resize:vertical;background:#e7f8e8;border:1px solid #b9dfbf;border-radius:14px;padding:16px;white-space:pre-wrap;font-size:15px;line-height:1.55;font-family:Arial,sans-serif;color:#17324d;box-sizing:border-box"></textarea>
 <div style="margin-top:12px;padding:11px;border-radius:10px;background:#eaf2ff;color:#075985;font-size:13px">
         यह message आपके <b>WhatsApp Business</b> से भेजने के लिए तैयार है।
       </div>
