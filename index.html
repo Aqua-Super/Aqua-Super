@@ -1675,6 +1675,64 @@ function aquaImportOldBackup(){
     try{return aquaLiveFingerprint(db,window.__AQUA_LIVE_DELETED);}catch(e){return "";}
   }
 
+  function aquaLiveJsonValue(x){
+    try{return JSON.stringify(aquaLiveStableValue(x));}catch(e){return "";}
+  }
+
+  function aquaLiveMergeRecords(baseList,localList,remoteList,idField,deletedMap){
+    var base={},local={},remote={},out={},ids={};
+    (baseList||[]).forEach(function(x){if(x&&x[idField])base[x[idField]]=x;});
+    (localList||[]).forEach(function(x){if(x&&x[idField]){local[x[idField]]=x;ids[x[idField]]=1;}});
+    (remoteList||[]).forEach(function(x){if(x&&x[idField]){remote[x[idField]]=x;ids[x[idField]]=1;}});
+    Object.keys(base).forEach(function(id){ids[id]=1;});
+    Object.keys(ids).forEach(function(id){
+      if(deletedMap && deletedMap[id])return;
+      var l=local[id],r=remote[id],b=base[id],chosen;
+      if(!l){chosen=r;}
+      else if(!r){chosen=l;}
+      else if(!b){chosen=Object.assign({},l,r);if((Date.parse(l.updatedAt||"")||0)>(Date.parse(r.updatedAt||"")||0))chosen=Object.assign({},r,l);}
+      else{
+        var lc=aquaLiveJsonValue(l)!==aquaLiveJsonValue(b);
+        var rc=aquaLiveJsonValue(r)!==aquaLiveJsonValue(b);
+        if(lc&&!rc)chosen=l;
+        else if(rc&&!lc)chosen=r;
+        else if(lc&&rc){
+          chosen=Object.assign({},l,r);
+          if((Date.parse(l.updatedAt||"")||0)>(Date.parse(r.updatedAt||"")||0))chosen=Object.assign({},r,l);
+        }else chosen=r;
+      }
+      if(chosen)out[id]=clone(chosen);
+    });
+    return Object.keys(out).map(function(id){return out[id];});
+  }
+
+  function aquaLiveMergeConcurrentMaster(res){
+    var base=readJson(MASTER_DB_KEY,{customers:[],entries:[]});
+    var remoteDb=res&&res.db||{customers:[],entries:[]};
+    var localDb=clone(db)||{customers:[],entries:[]};
+    var remoteMeta=res&&res.meta||{deletedCustomers:{},deletedEntries:{}};
+    var localMeta=window.__AQUA_LIVE_DELETED||{deletedCustomers:{},deletedEntries:{}};
+    var deletedCustomers=Object.assign({},remoteMeta.deletedCustomers||{},localMeta.deletedCustomers||{});
+    var deletedEntries=Object.assign({},remoteMeta.deletedEntries||{},localMeta.deletedEntries||{});
+    Object.keys(deletedCustomers).forEach(function(id){
+      deletedCustomers[id]=Math.max(Number(deletedCustomers[id])||0,Number((remoteMeta.deletedCustomers||{})[id])||0,Number((localMeta.deletedCustomers||{})[id])||0);
+    });
+    Object.keys(deletedEntries).forEach(function(id){
+      deletedEntries[id]=Math.max(Number(deletedEntries[id])||0,Number((remoteMeta.deletedEntries||{})[id])||0,Number((localMeta.deletedEntries||{})[id])||0);
+    });
+    var merged={
+      customers:aquaLiveMergeRecords(base.customers,localDb.customers,remoteDb.customers,"syncId",deletedCustomers),
+      entries:aquaLiveMergeRecords(base.entries,localDb.entries,remoteDb.entries,"syncId",deletedEntries)
+    };
+    db=merged;
+    window.__AQUA_LIVE_DELETED={deletedCustomers:deletedCustomers,deletedEntries:deletedEntries};
+    window.__AQUA_LIVE_REVISION=Number(res.revision||0)||0;
+    ensureClientIds();
+    writeLocal();
+    aquaLiveSetDirty(true);
+    return merged;
+  }
+
   function aquaLiveHasLocalChanges(){
     if(aquaLiveIsDirty())return true;
     try{
@@ -1916,6 +1974,8 @@ function aquaImportOldBackup(){
 
       if(forceReload || incoming>current){
         if(incoming>current && aquaLiveHasLocalChanges()){
+          aquaLiveMergeConcurrentMaster(res);
+          aquaLiveSetTopStatus("sync","Merging local and server entries...");
           aquaLivePost();
         }else{
           applyMaster(res,!!forceReload);
@@ -1924,16 +1984,15 @@ function aquaImportOldBackup(){
         applyMaster(res,true);
         return;
       }else if(verifySameRevision && incoming===current && localFingerprintMismatch && !remoteFingerprintMismatch){
-        /* Local data changed after the last confirmed master snapshot, but
-           the server still matches that snapshot. Preserve the local work by
-           posting it; do not let an equal revision silently hide local edits. */
+        /* Only local data changed since the last confirmed master snapshot. */
         aquaLivePost();
       }else if(sameRevisionMismatch){
         if(localFingerprintMismatch){
-          /* Both sides differ from the last confirmed snapshot. Do not
-             overwrite either side automatically; wait for a newer revision
-             or a clean comparison instead of risking data loss. */
-          aquaLiveSetTopStatus("ok","Sync conflict detected • Rev "+current);
+          /* Both devices changed since the last confirmed master snapshot.
+             Merge records by syncId so independent entries from either side survive. */
+          aquaLiveMergeConcurrentMaster(res);
+          aquaLiveSetTopStatus("sync","Merging local and server entries...");
+          aquaLivePost();
         }else if(aquaLiveIsDirty()){
           aquaLivePost();
         }else{
