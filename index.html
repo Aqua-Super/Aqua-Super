@@ -1979,7 +1979,23 @@ function aquaImportOldBackup(){
       var remoteFingerprintMismatch=!savedFp || remoteFp!==savedFp;
       var sameRevisionMismatch=verifySameRevision && incoming===current && remoteFingerprintMismatch;
 
-      if(forceReload || incoming>current){
+      if(incoming<current && !forceReload){
+        /* The server revision is behind this device. Reconcile it explicitly:
+           if local and remote both match the saved master fingerprint, the
+           data is already identical and only the stale revision needs rebasing.
+           If only local changed, rebase then push; if both differ, merge safely. */
+        if(!localFingerprintMismatch && !remoteFingerprintMismatch){
+          applyMaster(res,false);
+        }else if(localFingerprintMismatch && !remoteFingerprintMismatch){
+          window.__AQUA_LIVE_REVISION=incoming;
+          writeLocal();
+          aquaLivePost();
+        }else{
+          aquaLiveMergeConcurrentMaster(res);
+          aquaLiveSetTopStatus("sync","Reconciling server revision and merging entries...");
+          aquaLivePost();
+        }
+      }else if(forceReload || incoming>current){
         if(incoming>current && aquaLiveHasLocalChanges()){
           aquaLiveMergeConcurrentMaster(res);
           aquaLiveSetTopStatus("sync","Merging local and server entries...");
