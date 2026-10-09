@@ -750,11 +750,34 @@ function saveEntrySMS(){
  db.entries.push(e);c.updatedAt=new Date().toISOString();save();
  clearDailyEntryAmountBox();sendSMS(e,c);
 }
+/* Message date: include date and matching weekday, never time. */
+function aquaMessageDateLines(value){
+ var d=null;
+ if(value instanceof Date){
+   d=new Date(value.getFullYear(),value.getMonth(),value.getDate());
+ }else{
+   var raw=String(value||"").trim();
+   var m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+   if(m)d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+   else if(raw){
+     var parsed=new Date(raw);
+     if(!isNaN(parsed.getTime()))d=new Date(parsed.getFullYear(),parsed.getMonth(),parsed.getDate());
+   }
+ }
+ if(!d || isNaN(d.getTime()))d=new Date();
+ var dd=String(d.getDate()).padStart(2,"0");
+ var mm=String(d.getMonth()+1).padStart(2,"0");
+ var yyyy=d.getFullYear();
+ var day=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][d.getDay()];
+ return ["Date: "+dd+"-"+mm+"-"+yyyy,"Day: "+day];
+}
+
 function message(e,c){
  var s=stat(c);
  var lines=[];
  lines.push("Hello "+c.name+" Ji,");
  lines.push("");
+ lines.push.apply(lines,aquaMessageDateLines(e && e.date));
  if(e.jg>0 || e.je>0){
    lines.push("Aaj Jar Water Delivery:");
    lines.push("Fill Jar Diye: "+e.jg);
@@ -783,7 +806,7 @@ function message(e,c){
  return lines.join("\n");
 }
 function waterReminderMessage(c,days){
- return ["Hello "+c.name+" Ji,","","Aapke yahan pichhle "+days+" din se Aqua Super water delivery ka record nahi hai.","Agar aapko water chahiye to please hume bata dein.","","Thank you – Aqua Super"].join("\n");
+ return ["Hello "+c.name+" Ji,"].concat(aquaMessageDateLines(new Date())).concat(["","Aapke yahan pichhle "+days+" din se Aqua Super water delivery ka record nahi hai.","Agar aapko water chahiye to please hume bata dein.","","Thank you – Aqua Super"]).join("\n");
 }
 function sendWaterReminderWA(encodedName){
  try{
@@ -808,7 +831,7 @@ function sendWaterReminderSMS(encodedName){
 }
 function paymentReminderMessage(c){
  var s=stat(c);
- return ["Hello "+c.name+" Ji,","","Aapka Aqua Super ka "+money(s.due)+" payment due hai.","Aapse request hai ki please apna pending payment convenient time par kar dein.","Payment karne ke baad please hume inform kar dein.","","Thank you – Aqua Super"].join("\n");
+ return ["Hello "+c.name+" Ji,"].concat(aquaMessageDateLines(new Date())).concat(["","Aapka Aqua Super ka "+money(s.due)+" payment due hai.","Aapse request hai ki please apna pending payment convenient time par kar dein.","Payment karne ke baad please hume inform kar dein.","","Thank you – Aqua Super"]).join("\n");
 }
 function sendPaymentReminder(encodedName){
  var c=cget(dec(encodedName)); if(!c){alert("Customer nahi mila.");return;}
