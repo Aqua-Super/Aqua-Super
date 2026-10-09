@@ -1986,8 +1986,16 @@ function aquaImportOldBackup(){
       }else if(!localStorage.getItem(INIT_KEY)){
         applyMaster(res,true);
         return;
-      }else if(verifySameRevision && incoming===current && localFingerprintMismatch && !remoteFingerprintMismatch){
-        /* Only local data changed since the last confirmed master snapshot. */
+      }else if(verifySameRevision && incoming<=current && localFingerprintMismatch && !remoteFingerprintMismatch){
+        /* Only local data changed since the last confirmed master snapshot.
+           Push it even if the server revision has moved backwards. */
+        aquaLivePost();
+      }else if(verifySameRevision && incoming<current && remoteFingerprintMismatch){
+        /* Server revision is lower than this device's saved revision and the
+           master fingerprint differs. Do not report "Already synced":
+           merge records from both sides and push the union to the Master. */
+        aquaLiveMergeConcurrentMaster(res);
+        aquaLiveSetTopStatus("sync","Reconciling server revision and merging entries...");
         aquaLivePost();
       }else if(sameRevisionMismatch){
         if(localFingerprintMismatch){
