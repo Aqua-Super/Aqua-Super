@@ -137,8 +137,10 @@ function aquaPaymentReminder(customer){
       "Aapse request hai ki please apna pending payment convenient time par kar dein.\n" +
       "Payment karne ke baad please hume inform kar dein.\n\n" +
       "Thank you – Aqua Super";
-    var url="https://wa.me/91"+String(phone).replace(/\D/g,"")+"?text="+encodeURIComponent(msg);
-    if(confirm(msg+"\n\nWhatsApp kholen?")){ var waTarget=/Android|iPhone|iPad|iPod/i.test(String(navigator.userAgent||""))?"_blank":"AQUA_WHATSAPP_WEB"; window.open(url,waTarget); }
+    var isMobile=/Android|iPhone|iPad|iPod/i.test(String(navigator.userAgent||""));
+    var cleanPhone=String(phone).replace(/\D/g,"");
+    var url=isMobile?"https://wa.me/91"+cleanPhone+"?text="+encodeURIComponent(msg):"https://web.whatsapp.com/send?phone="+cleanPhone+"&text="+encodeURIComponent(msg);
+    if(confirm(msg+"\n\nWhatsApp kholen?")){ window.open(url,isMobile?"_blank":"AQUA_WHATSAPP_WEB"); }
   }catch(e){
     alert("Payment reminder banane mein problem hui.");
   }
@@ -612,8 +614,10 @@ function entry(){
  '<div id="preview" class="msg">Customer select karne ke liye upar naam ya mobile search karein.</div><br><button onclick="saveEntry(false)">💾 Save Entry</button><br><br><button onclick="saveEntry(true)">🟢 Save + Send WhatsApp</button><br><br><button onclick="saveEntrySMS()">💬 Save + Send SMS</button></div>';
 
  ["jg","je","cg","ce","pay","ejr","ecr"].forEach(function(id){
-   document.getElementById(id).oninput=preview;
+   var field=document.getElementById(id);
+   field.oninput=function(){preview();aquaRememberEntryFields();};
  });
+ aquaRestoreEntryFields();
  document.getElementById("entrySearch").focus();
 }
 function filterEntryCustomers(){
@@ -668,19 +672,59 @@ function preview(){
  var amount=jg*(Number(document.getElementById("ejr").value)||0)+cg*(Number(document.getElementById("ecr").value)||0);
  document.getElementById("preview").innerHTML="Previous "+balanceLabel(s.due)+": <b>"+balanceMoney(s.due)+"</b><br>Today\'s Amount: <b>"+money(amount)+"</b><br>Total "+balanceLabel(s.due+amount-p)+": <b>"+balanceMoney(s.due+amount-p)+"</b><br>Jar Balance: <b>"+(s.jar+jg-je)+"</b> · Can Balance: <b>"+(s.can+cg-ce)+"</b>";
 }
+var AQUA_ENTRY_FIELDS_SESSION_KEY="AQUA_DAILY_ENTRY_FIELDS_V1";
+function aquaRememberEntryFields(){
+  try{
+    var values={};
+    ["dt","jg","je","cg","ce","pay","ejr","ecr"].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el)values[id]=el.value;
+    });
+    sessionStorage.setItem(AQUA_ENTRY_FIELDS_SESSION_KEY,JSON.stringify(values));
+  }catch(e){}
+}
+function aquaRestoreEntryFields(){
+  try{
+    var raw=sessionStorage.getItem(AQUA_ENTRY_FIELDS_SESSION_KEY);
+    if(!raw)return;
+    var values=JSON.parse(raw);
+    ["dt","jg","je","cg","ce","pay","ejr","ecr"].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el && values[id]!==undefined)el.value=values[id];
+    });
+    var pay=document.getElementById("pay");
+    if(pay)pay.value="";
+    preview();
+    aquaRememberEntryFields();
+  }catch(e){}
+}
+function aquaClearEntryCustomer(){
+  ["entrySearch","en","ea","em"].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.value="";
+  });
+  var result=document.getElementById("entryResult");
+  if(result)result.innerHTML="";
+  var prev=document.getElementById("eprev");
+  if(prev)prev.textContent=money(0);
+  var search=document.getElementById("entrySearch");
+  if(search)search.focus();
+  aquaRememberEntryFields();
+}
 function clearDailyEntryAmountBox(){
   var paymentField=document.getElementById("pay");
   if(paymentField){
     paymentField.value="";
     paymentField.dispatchEvent(new Event("input",{bubbles:true}));
   }
+  aquaRememberEntryFields();
 }
 function saveEntry(wa){
  var c=cget(document.getElementById("en").value),jg=+document.getElementById("jg").value||0,je=+document.getElementById("je").value||0,cg=+document.getElementById("cg").value||0,ce=+document.getElementById("ce").value||0,p=+document.getElementById("pay").value||0,s=stat(c),jarRate=+document.getElementById("ejr").value||0,canRate=+document.getElementById("ecr").value||0,amount=jg*jarRate+cg*canRate;
  var e={date:document.getElementById("dt").value,name:c.name,jg:jg,je:je,cg:cg,ce:ce,amount:amount,paid:p,previousDue:s.due,createdAt:new Date().toISOString()};
  db.entries.push(e);c.updatedAt=new Date().toISOString();save();
  clearDailyEntryAmountBox();
- if(wa){sendWA(e,c)}else{alert("Entry save ho gayi.");}
+ if(wa){aquaClearEntryCustomer();sendWA(e,c)}else{alert("Entry save ho gayi.");}
 }
 function saveEntrySMS(){
  var c=cget(document.getElementById("en").value),jg=+document.getElementById("jg").value||0,je=+document.getElementById("je").value||0,cg=+document.getElementById("cg").value||0,ce=+document.getElementById("ce").value||0,p=+document.getElementById("pay").value||0,s=stat(c),jarRate=+document.getElementById("ejr").value||0,canRate=+document.getElementById("ecr").value||0,amount=jg*jarRate+cg*canRate;
@@ -2408,6 +2452,7 @@ function aquaImportOldBackup(){
       showPreview(phone,msg,function(){
         db.entries.push(e);c.updatedAt=new Date().toISOString();save();
         clearDailyEntryAmountBox();
+        aquaClearEntryCustomer();
         /* Stay on Daily Entry so the next customer can be searched and entered immediately. */
       });
     }catch(err){alert("SMS preview nahi ban saka: "+err.message);}
