@@ -867,6 +867,10 @@ function sendWA(e,c){
  document.getElementById("waModal").style.display="flex";
 }
 function closeWAPreview(){document.getElementById("waModal").style.display="none";pendingWA=null}
+
+/* Reuse one desktop WhatsApp Web tab for all customer messages. */
+var aquaWhatsAppWebTab = null;
+
 function confirmWASend(){
  if(!pendingWA)return;
  var editor=document.getElementById("waPreviewText");
@@ -884,7 +888,18 @@ function confirmWASend(){
 
  if(!isMobile){
    var desktopUrl="https://web.whatsapp.com/send?phone="+phone+"&text="+text;
-   window.open(desktopUrl,"AQUA_WHATSAPP_WEB");
+
+   /* Keep reusing the same tab instead of opening one tab per customer. */
+   try{
+     if(aquaWhatsAppWebTab && !aquaWhatsAppWebTab.closed){
+       aquaWhatsAppWebTab.location.href=desktopUrl;
+       aquaWhatsAppWebTab.focus();
+     }else{
+       aquaWhatsAppWebTab=window.open(desktopUrl,"AQUA_WHATSAPP_WEB_SINGLE");
+     }
+   }catch(waTabError){
+     aquaWhatsAppWebTab=window.open(desktopUrl,"AQUA_WHATSAPP_WEB_SINGLE");
+   }
    return;
  }
 
