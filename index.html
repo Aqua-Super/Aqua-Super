@@ -1908,7 +1908,10 @@ function aquaImportOldBackup(){
       var remoteMeta=res.meta||{deletedCustomers:{},deletedEntries:{}};
       var remoteFp=aquaLiveFingerprint(res.db,remoteMeta);
       var savedFp=localStorage.getItem(MASTER_FP_KEY)||"";
-      var sameRevisionMismatch=verifySameRevision && incoming===current && (!savedFp || remoteFp!==savedFp);
+      var localFp=aquaLiveCurrentFingerprint();
+      var localFingerprintMismatch=!!savedFp && localFp!==savedFp;
+      var remoteFingerprintMismatch=!savedFp || remoteFp!==savedFp;
+      var sameRevisionMismatch=verifySameRevision && incoming===current && remoteFingerprintMismatch;
 
       if(forceReload || incoming>current){
         if(incoming>current && aquaLiveHasLocalChanges()){
@@ -1919,8 +1922,18 @@ function aquaImportOldBackup(){
       }else if(!localStorage.getItem(INIT_KEY)){
         applyMaster(res,true);
         return;
+      }else if(verifySameRevision && incoming===current && localFingerprintMismatch && !remoteFingerprintMismatch){
+        /* Local data changed after the last confirmed master snapshot, but
+           the server still matches that snapshot. Preserve the local work by
+           posting it; do not let an equal revision silently hide local edits. */
+        aquaLivePost();
       }else if(sameRevisionMismatch){
-        if(aquaLiveIsDirty()){
+        if(localFingerprintMismatch){
+          /* Both sides differ from the last confirmed snapshot. Do not
+             overwrite either side automatically; wait for a newer revision
+             or a clean comparison instead of risking data loss. */
+          aquaLiveSetTopStatus("ok","Sync conflict detected • Rev "+current);
+        }else if(aquaLiveIsDirty()){
           aquaLivePost();
         }else{
           applyMaster(res,false);
