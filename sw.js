@@ -1,4 +1,4 @@
-const CACHE_NAME = "aqua-super-pwa-v80-20261009-single-whatsapp-tab";
+const CACHE_NAME = "aqua-super-pwa-v81-20261009-message-date-day";
 const APP_SHELL = ["./","./index.html","./manifest.webmanifest","./sw.js","./icon-192.png","./icon-512.png"];
 const NOTE_FIX = `<script id="aqua-notes-click-fix">(function(){window.aquaOpenNotes=function(){try{if(typeof window.aquaNotesRender==='function'){window.aquaNotesRender();return}var m=document.getElementById('main');if(m)m.innerHTML='<div class="box"><h2>📝 Notes / اطلاع</h2><p>Notes load nahi hua. Please page refresh karein.</p></div>'}catch(e){console.error('Notes',e)}};var b=document.getElementById('nNotes');if(b)b.onclick=function(){window.aquaOpenNotes()};})();</script>`;
 const INSTALL_HIDE = `<style id="aqua-install-hide">#aquaInstallBtn{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;padding:0!important;margin:0!important;border:0!important;overflow:hidden!important;pointer-events:none!important}</style>`;
