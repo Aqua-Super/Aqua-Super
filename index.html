@@ -915,8 +915,23 @@ function confirmWASend(){
 
  if(!isMobile){
    var desktopUrl="https://web.whatsapp.com/send?phone="+phone+"&text="+text;
-   var waTab=window.open(desktopUrl,"AQUA_WHATSAPP_WEB_SINGLE");
-   if(waTab){try{waTab.focus();}catch(waFocusError){}}
+   /* Reuse the named tab by opening a neutral same-origin context first,
+      then navigate that existing tab to WhatsApp Web. */
+   var waTab=null;
+   try{
+     waTab=window.open("about:blank","AQUA_WHATSAPP_WEB_SINGLE");
+     if(waTab){
+       waTab.location.replace(desktopUrl);
+       try{waTab.focus();}catch(waFocusError){}
+     }else{
+       alert("WhatsApp tab open nahi ho saka. Browser popup permission check karein.");
+     }
+   }catch(waTabError){
+     try{
+       if(waTab && !waTab.closed)waTab.location.href=desktopUrl;
+       else alert("WhatsApp tab open nahi ho saka. Browser popup permission check karein.");
+     }catch(waNavigateError){}
+   }
    return;
  }
 
