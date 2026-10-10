@@ -180,7 +180,7 @@ function aquaPaymentReminder(customer){
     if(cleanPhone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
     pendingWA={e:null,c:{name:name,mobile:phone},phone:cleanPhone,reminder:true,reminderText:msg};
     aquaSetWAPreviewText(msg);
-    document.getElementById("waModal").style.display="flex";
+    aquaShowWAPreview();
   }catch(e){
     alert("Payment reminder banane mein problem hui.");
   }
@@ -906,6 +906,31 @@ function aquaSetWAPreviewText(text){
  var field=document.getElementById("waPreviewText");
  if(field)field.value=String(text||"");
 }
+function aquaShowWAPreview(){
+ var field=document.getElementById("waPreviewText");
+ if(field){
+   field.readOnly=true;
+   field.blur();
+ }
+ if(document.activeElement && typeof document.activeElement.blur==="function") document.activeElement.blur();
+ document.getElementById("waModal").style.display="flex";
+}
+(function(){
+ var field=document.getElementById("waPreviewText");
+ if(!field)return;
+ field.addEventListener("pointerdown",function(){
+   if(field.readOnly){
+     field.readOnly=false;
+     field.focus();
+   }
+ });
+ field.addEventListener("click",function(){
+   if(field.readOnly){
+     field.readOnly=false;
+     field.focus();
+   }
+ });
+})();
 function sendWA(e,c){
  var phone=normalizeIndiaNumber(c.mobile);
  if(phone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
