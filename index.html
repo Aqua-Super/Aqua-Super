@@ -910,6 +910,12 @@ function sendWA(e,c){
 function closeWAPreview(){document.getElementById("waModal").style.display="none";pendingWA=null}
 
 /* Reuse the same named WhatsApp Web tab for every customer. */
+window.aquaWhatsAppExtensionReady=false;
+window.addEventListener("message",function(ev){
+ if(ev.source===window && ev.origin===location.origin && ev.data && ev.data.type==="AQUA_WA_EXTENSION_READY"){
+   window.aquaWhatsAppExtensionReady=true;
+ }
+});
 function confirmWASend(){
  if(!pendingWA)return;
  var editor=document.getElementById("waPreviewText");
@@ -926,8 +932,16 @@ function confirmWASend(){
  var isMobile=/Android|iPhone|iPad|iPod/i.test(ua);
 
  if(!isMobile){
-   /* Use one persistent named browsing target for all customer sends.
-      A real anchor target is used so Chrome resolves the named tab consistently. */
+   /* Prefer the optional Chrome extension: it reuses one existing WhatsApp Web tab. */
+   if(window.aquaWhatsAppExtensionReady){
+     window.postMessage({
+       type:"AQUA_WA_OPEN_SINGLE_TAB",
+       phone:phone,
+       message:decodeURIComponent(text)
+     },location.origin);
+     return;
+   }
+   /* Fallback when the extension is not installed. */
    var desktopUrl="https://web.whatsapp.com/send?phone="+phone+"&text="+text;
    var waLink=document.getElementById("aquaWhatsAppSingleTabLink");
    if(!waLink){
