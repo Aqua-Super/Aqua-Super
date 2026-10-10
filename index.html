@@ -895,9 +895,7 @@ function sendWA(e,c){
 }
 function closeWAPreview(){document.getElementById("waModal").style.display="none";pendingWA=null}
 
-/* Reuse one desktop WhatsApp Web tab for all customer messages. */
-var aquaWhatsAppWebTab = null;
-
+/* Reuse the same named WhatsApp Web tab for every customer. */
 function confirmWASend(){
  if(!pendingWA)return;
  var editor=document.getElementById("waPreviewText");
@@ -907,26 +905,16 @@ function confirmWASend(){
  var phone=pendingWA.phone;
  document.getElementById("waModal").style.display="none";
 
- // Desktop/Laptop: use WhatsApp Web URL so the installed Chrome WhatsApp PWA
- // can capture/open the link if Chrome has link-capturing enabled.
- // Mobile: keep the existing WhatsApp Business deep-link behavior unchanged.
+ // Desktop/Laptop: always target the same named browsing context.
+ // This avoids relying on a window handle that can become stale.
+ // Mobile WhatsApp Business behavior remains unchanged.
  var ua=String(navigator.userAgent||"");
  var isMobile=/Android|iPhone|iPad|iPod/i.test(ua);
 
  if(!isMobile){
    var desktopUrl="https://web.whatsapp.com/send?phone="+phone+"&text="+text;
-
-   /* Keep reusing the same tab instead of opening one tab per customer. */
-   try{
-     if(aquaWhatsAppWebTab && !aquaWhatsAppWebTab.closed){
-       aquaWhatsAppWebTab.location.href=desktopUrl;
-       aquaWhatsAppWebTab.focus();
-     }else{
-       aquaWhatsAppWebTab=window.open(desktopUrl,"AQUA_WHATSAPP_WEB_SINGLE");
-     }
-   }catch(waTabError){
-     aquaWhatsAppWebTab=window.open(desktopUrl,"AQUA_WHATSAPP_WEB_SINGLE");
-   }
+   var waTab=window.open(desktopUrl,"AQUA_WHATSAPP_WEB_SINGLE");
+   if(waTab){try{waTab.focus();}catch(waFocusError){}}
    return;
  }
 
