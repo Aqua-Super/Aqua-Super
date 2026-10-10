@@ -920,10 +920,20 @@ function confirmWASend(){
  var isMobile=/Android|iPhone|iPad|iPod/i.test(ua);
 
  if(!isMobile){
-   /* Keep WhatsApp Web inside the desktop browser/PWA workflow.
-      Reuse the same named WhatsApp Web tab instead of switching to a desktop app. */
+   /* Use one persistent named browsing target for all customer sends.
+      A real anchor target is used so Chrome resolves the named tab consistently. */
    var desktopUrl="https://web.whatsapp.com/send?phone="+phone+"&text="+text;
-   window.open(desktopUrl,"AQUA_WHATSAPP_WEB_SINGLE");
+   var waLink=document.getElementById("aquaWhatsAppSingleTabLink");
+   if(!waLink){
+     waLink=document.createElement("a");
+     waLink.id="aquaWhatsAppSingleTabLink";
+     waLink.target="AQUA_WHATSAPP_WEB_SINGLE";
+     waLink.rel="noopener";
+     waLink.style.display="none";
+     document.body.appendChild(waLink);
+   }
+   waLink.href=desktopUrl;
+   waLink.click();
    return;
  }
 
