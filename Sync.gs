@@ -260,10 +260,13 @@ function getRevision_() {
   var cachedTime = props.getProperty("AQUA_LIVE_UPDATED_AT_CACHE");
 
   if (cached !== null) {
+    var info = dailyRevisionInfo_(Number(cached) || 0);
     return {
       ok: true,
       revision: Number(cached) || 0,
-      updatedAt: cachedTime || null
+      updatedAt: cachedTime || null,
+      dailyRevision: info.dailyRevision,
+      dailyRevisionDate: info.dailyRevisionDate
     };
   }
 
@@ -284,12 +287,63 @@ function getRevision_() {
 
   props.setProperty("AQUA_LIVE_REVISION_CACHE", String(revision));
   props.setProperty("AQUA_LIVE_UPDATED_AT_CACHE", String(updatedAt || ""));
+  var info = dailyRevisionInfo_(revision);
 
   return {
     ok: true,
     revision: revision,
-    updatedAt: updatedAt
+    updatedAt: updatedAt,
+    dailyRevision: info.dailyRevision,
+    dailyRevisionDate: info.dailyRevisionDate
   };
+}
+
+function dailyRevisionInfo_(totalRevision) {
+  var props = PropertiesService.getScriptProperties();
+  var today = Utilities.formatDate(new Date(), "Asia/Kolkata", "yyyy-MM-dd");
+  var savedDate = props.getProperty("AQUA_LIVE_DAILY_REV_DATE");
+  var savedDaily = props.getProperty("AQUA_LIVE_DAILY_REVISION");
+
+  // On first installation, align today's counter with the existing total
+  // revision. On later calendar dates, show zero until the first new save.
+  if (savedDate === null || savedDaily === null) {
+    var initial = Number(totalRevision) || 0;
+    props.setProperties({
+      AQUA_LIVE_DAILY_REV_DATE: today,
+      AQUA_LIVE_DAILY_REVISION: String(initial)
+    }, false);
+    return { dailyRevision: initial, dailyRevisionDate: today };
+  }
+
+  if (savedDate !== today) {
+    return { dailyRevision: 0, dailyRevisionDate: today };
+  }
+
+  return {
+    dailyRevision: Number(savedDaily) || 0,
+    dailyRevisionDate: today
+  };
+}
+
+function advanceDailyRevision_(updatedAt, totalRevision) {
+  var props = PropertiesService.getScriptProperties();
+  var date = Utilities.formatDate(
+    updatedAt ? new Date(updatedAt) : new Date(),
+    "Asia/Kolkata",
+    "yyyy-MM-dd"
+  );
+  var savedDate = props.getProperty("AQUA_LIVE_DAILY_REV_DATE");
+  var savedDaily = props.getProperty("AQUA_LIVE_DAILY_REVISION");
+  var daily = savedDate === date && savedDaily !== null
+    ? (Number(savedDaily) || 0) + 1
+    : 1;
+
+  props.setProperties({
+    AQUA_LIVE_DAILY_REV_DATE: date,
+    AQUA_LIVE_DAILY_REVISION: String(daily)
+  }, false);
+
+  return { dailyRevision: daily, dailyRevisionDate: date };
 }
 
 function findMaster_() {
@@ -310,6 +364,7 @@ function writeMaster_(obj) {
     AQUA_LIVE_REVISION_CACHE: String(Number(obj.revision) || 0),
     AQUA_LIVE_UPDATED_AT_CACHE: String(obj.updatedAt || "")
   }, true);
+  advanceDailyRevision_(obj.updatedAt, Number(obj.revision) || 0);
 
   if (oldFile) {
     oldFile.setContent(text);
