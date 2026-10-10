@@ -839,7 +839,7 @@ function sendWaterReminderWA(encodedName){
   var phone=normalizeIndiaNumber(c.mobile); if(phone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
   pendingWA={e:null,c:c,phone:phone,reminderText:waterReminderMessage(c,days)};
   aquaSetWAPreviewText(waterReminderMessage(c,days));
-  document.getElementById("waModal").style.display="flex";
+  aquaShowWAPreview();
  }catch(err){alert("WhatsApp reminder open nahi ho saka: "+err.message);}
 }
 function sendWaterReminderSMS(encodedName){
@@ -862,7 +862,7 @@ function sendPaymentReminder(encodedName){
  var phone=normalizeIndiaNumber(c.mobile); if(phone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
  pendingWA={e:null,c:c,phone:phone,reminder:true};
  aquaSetWAPreviewText(paymentReminderMessage(c));
- document.getElementById("waModal").style.display="flex";
+ aquaShowWAPreview();
 }
 function normalizeIndiaNumber(raw){
  var d=String(raw||"").replace(/\D/g,"");
@@ -937,7 +937,7 @@ function sendWA(e,c){
  if(phone.length<12){alert("Customer mobile number sahi 10 digit Indian number hona chahiye.");return;}
  pendingWA={e:e,c:c,phone:phone};
  aquaSetWAPreviewText(message(e,c));
- document.getElementById("waModal").style.display="flex";
+ aquaShowWAPreview();
 }
 function closeWAPreview(){document.getElementById("waModal").style.display="none";pendingWA=null}
 
