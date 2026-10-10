@@ -934,27 +934,12 @@ function confirmWASend(){
  var isMobile=/Android|iPhone|iPad|iPod/i.test(ua);
 
  if(!isMobile){
-   /* Prefer the optional Chrome extension: it reuses one existing WhatsApp Web tab. */
-   if(window.aquaWhatsAppExtensionReady){
-     window.postMessage({
-       type:"AQUA_WA_OPEN_SINGLE_TAB",
-       phone:phone,
-       message:decodeURIComponent(text)
-     },location.origin);
-     return;
-   }
-   /* Fallback when the extension is not installed. */
-   var desktopUrl="https://web.whatsapp.com/send?phone="+phone+"&text="+text;
-   var waLink=document.getElementById("aquaWhatsAppSingleTabLink");
-   if(!waLink){
-     waLink=document.createElement("a");
-     waLink.id="aquaWhatsAppSingleTabLink";
-     waLink.target="AQUA_WHATSAPP_WEB_SINGLE";
-     waLink.style.display="none";
-     document.body.appendChild(waLink);
-   }
-   waLink.href=desktopUrl;
-   waLink.click();
+   /* Send the request to the installed Chrome extension, which reuses one WhatsApp Web tab. */
+   window.postMessage({
+     type:"AQUA_WA_OPEN_SINGLE_TAB",
+     phone:phone,
+     message:editedText
+   },location.origin);
    return;
  }
 
