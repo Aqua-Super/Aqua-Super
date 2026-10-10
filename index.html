@@ -1722,6 +1722,13 @@ function aquaImportOldBackup(){
     return new Date().toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true});
   }
 
+  window.__AQUA_LIVE_DAILY_REVISION=Number(window.__AQUA_LIVE_DAILY_REVISION||0)||0;
+  window.__AQUA_LIVE_DAILY_REVISION_DATE="";
+
+  function aquaLiveRevisionLabel(totalRevision){
+    return "Day Rev "+(Number(window.__AQUA_LIVE_DAILY_REVISION||0)||0)+" • Total Rev "+(Number(totalRevision||0)||0);
+  }
+
   function uid(){
     try{
       if(window.crypto && typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();
@@ -2007,6 +2014,10 @@ function aquaImportOldBackup(){
 
       var incoming=Number(res.revision||0)||0;
       var current=Number(window.__AQUA_LIVE_REVISION||0)||0;
+      if(typeof res.dailyRevision!=="undefined"){
+        window.__AQUA_LIVE_DAILY_REVISION=Number(res.dailyRevision||0)||0;
+        window.__AQUA_LIVE_DAILY_REVISION_DATE=String(res.dailyRevisionDate||"");
+      }
 
       if(incoming>current){
         aquaLiveRevisionBusy=false;
@@ -2033,7 +2044,7 @@ function aquaImportOldBackup(){
          repeatedly flash Checking/Retrying even while sync was healthy. */
       revisionCheckCount++;
       aquaLiveRevisionBusy=false;
-      aquaLiveSetTopStatus("ok","Connected • Rev "+current);
+      aquaLiveSetTopStatus("ok","Connected • "+aquaLiveRevisionLabel(current));
     }).catch(function(err){
       if(token!==aquaLiveRetryToken)return;
 
