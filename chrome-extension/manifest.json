@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Aqua Super WhatsApp Tab Reuser",
+  "version": "1.0.0",
+  "description": "Reuse one existing WhatsApp Web tab for Aqua Super customer messages.",
+  "permissions": [
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://web.whatsapp.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://aqua-super.github.io/Aqua-Super/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
