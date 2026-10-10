@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "description": "Reuse one existing WhatsApp Web tab for Aqua Super customer messages.",
   "permissions": [
-    "tabs"
+    "tabs",
+    "windows"
   ],
   "host_permissions": [
     "https://web.whatsapp.com/*"
