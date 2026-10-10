@@ -1,5 +1,13 @@
 "use strict";
 
+function bringWindowForward(windowId) {
+  if (!Number.isInteger(windowId)) return;
+  chrome.windows.update(windowId, { state: "normal", focused: true }, () => {
+    // Read lastError so expected browser restrictions do not become uncaught errors.
+    void chrome.runtime.lastError;
+  });
+}
+
 chrome.runtime.onMessage.addListener((request) => {
   if (!request || request.type !== "AQUA_WA_OPEN_SINGLE_TAB") return;
 
@@ -13,15 +21,17 @@ chrome.runtime.onMessage.addListener((request) => {
   chrome.tabs.query({ url: "https://web.whatsapp.com/*" }, (tabs) => {
     if (chrome.runtime.lastError) return;
 
-    // Reuse an existing WhatsApp Web tab; do not create a new one for each customer.
+    // Prefer an existing WhatsApp Web tab, including a tab in an installed app window.
     const existing = tabs && tabs.length ? tabs[0] : null;
     if (existing && Number.isInteger(existing.id)) {
-      chrome.tabs.update(existing.id, { url: url, active: true }, () => {
-        void chrome.runtime.lastError;
+      chrome.tabs.update(existing.id, { url: url, active: true }, (updatedTab) => {
+        if (chrome.runtime.lastError) return;
+        bringWindowForward((updatedTab && updatedTab.windowId) || existing.windowId);
       });
     } else {
-      chrome.tabs.create({ url: url, active: true }, () => {
-        void chrome.runtime.lastError;
+      chrome.tabs.create({ url: url, active: true }, (newTab) => {
+        if (chrome.runtime.lastError) return;
+        if (newTab) bringWindowForward(newTab.windowId);
       });
     }
   });
