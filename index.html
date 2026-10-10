@@ -918,10 +918,10 @@ function confirmWASend(){
  var isMobile=/Android|iPhone|iPad|iPod/i.test(ua);
 
  if(!isMobile){
-   /* Open the installed WhatsApp desktop app via its registered protocol.
-      This avoids creating a new web.whatsapp.com tab for each customer. */
-   var desktopAppUrl="whatsapp://send?phone="+phone+"&text="+text;
-   window.location.href=desktopAppUrl;
+   /* Keep WhatsApp Web inside the desktop browser/PWA workflow.
+      Reuse the same named WhatsApp Web tab instead of switching to a desktop app. */
+   var desktopUrl="https://web.whatsapp.com/send?phone="+phone+"&text="+text;
+   window.open(desktopUrl,"AQUA_WHATSAPP_WEB_SINGLE");
    return;
  }
 
