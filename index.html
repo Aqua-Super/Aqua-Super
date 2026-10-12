@@ -411,7 +411,7 @@ function customers(){
 }
 function customerList(){
  var q=(document.getElementById("q").value||"").toLowerCase(),out="";
- for(var i=0;i<db.customers.length;i++){var c=db.customers[i];if(c.name.toLowerCase().indexOf(q)>=0||String(c.mobile).indexOf(q)>=0){var s=stat(c);out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><span class="small">'+esc(c.mobile)+' · '+esc(c.address)+'</span><br>Due: <b class="red">'+money(s.due)+'</b> · Jar: <b>'+s.jar+'</b> · Can: <b>'+s.can+'</b>+customerRecentInfo(c)<br><div class="btns" style="margin:8px 0 0"><button onclick="editCustomerByName(\''+enc(c.name)+'\')" style="padding:9px">✏️ Edit</button><button onclick="deleteCustomerByName(\''+enc(c.name)+'\')" style="padding:9px;background:#dc2626">🗑️ Delete</button></div></div>'}}
+ for(var i=0;i<db.customers.length;i++){var c=db.customers[i];if(c.name.toLowerCase().indexOf(q)>=0||String(c.mobile).indexOf(q)>=0){var s=stat(c);out+='<div class="item"><b>'+esc(c.name)+' Ji</b><br><span class="small">'+esc(c.mobile)+' · '+esc(c.address)+'</span><br>Due: <b class="red">'+money(s.due)+'</b> · Jar: <b>'+s.jar+'</b> · Can: <b>'+s.can+'</b>'+customerRecentInfo(c)+'<br><div class="btns" style="margin:8px 0 0"><button onclick="editCustomerByName(\''+enc(c.name)+'\')" style="padding:9px">✏️ Edit</button><button onclick="deleteCustomerByName(\''+enc(c.name)+'\')" style="padding:9px;background:#dc2626">🗑️ Delete</button></div></div>'}}
  document.getElementById("cl").innerHTML=out||'<p class="small">Customer nahi mila.</p>';
 }
 function addCustomer(){
@@ -1074,7 +1074,7 @@ function restore(inp){
    var msg=smaller?"Yeh backup current data se chhota/older lag raha hai ("+x.customers.length+" customers, "+x.entries.length+" entries). Restore karne se current data replace hoga. Pehle current data ka safety backup download hoga. Continue?":"Backup restore karne se current app data replace hoga. Pehle current data ka safety backup download hoga. Continue?";
    if(!confirm(msg))return;backup();db=x;normalizeDB();save();aquaSaveDailyBackup();alert("Backup restore ho gaya. Customers: "+db.customers.length+" | Entries: "+db.entries.length);go("home")}else alert("Backup file galat hai.")}catch(e){alert("Backup file read nahi ho saki.")}};r.readAsText(f)
 }
-function enc(s){return encodeURIComponent(s)}function dec(s){return decodeURIComponent(s)}
+function enc(s){return encodeURIComponent(s).replace(/'/g,"%27")}function dec(s){return decodeURIComponent(s)}
 function esc(s){return String(s||"").replace(/[&<>"']/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]})}
 go("home");
 
