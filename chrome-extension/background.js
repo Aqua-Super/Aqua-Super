@@ -2,7 +2,6 @@
 
 const WA_URL_PATTERN = "https://web.whatsapp.com/*";
 const WA_ORIGIN = "https://web.whatsapp.com/";
-const pendingNavigations = new Map();
 
 function bringWindowForward(windowId) {
   if (!Number.isInteger(windowId)) return;
@@ -10,21 +9,6 @@ function bringWindowForward(windowId) {
     void chrome.runtime.lastError;
   });
 }
-
-// Diagnostic only: records navigation timing without logging customer numbers or message text.
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  const startedAt = pendingNavigations.get(tabId);
-  if (!startedAt) return;
-
-  if (changeInfo.status === "loading") {
-    console.info("[Aqua WA test] WhatsApp navigation started.");
-  }
-
-  if (changeInfo.status === "complete") {
-    console.info("[Aqua WA test] WhatsApp page completed in", Date.now() - startedAt, "ms.");
-    pendingNavigations.delete(tabId);
-  }
-});
 
 chrome.runtime.onMessage.addListener((request) => {
   if (!request || request.type !== "AQUA_WA_OPEN_SINGLE_TAB") return;
@@ -41,23 +25,32 @@ chrome.runtime.onMessage.addListener((request) => {
 
     const existing = tabs && tabs.length ? tabs[0] : null;
     if (existing && Number.isInteger(existing.id)) {
-      pendingNavigations.set(existing.id, Date.now());
-      console.info("[Aqua WA test] Reusing existing WhatsApp tab.");
-      chrome.tabs.update(existing.id, { url: url, active: true }, (updatedTab) => {
-        if (chrome.runtime.lastError) {
-          pendingNavigations.delete(existing.id);
-          return;
-        }
-        bringWindowForward((updatedTab && updatedTab.windowId) || existing.windowId);
-      });
-    } else {
-      console.info("[Aqua WA test] No WhatsApp tab found; opening one.");
-      chrome.tabs.create({ url: url, active: true }, (newTab) => {
+      console.info("[Aqua WA test] Trying SPA navigation in existing WhatsApp tab.");
+      chrome.tabs.update(existing.id, { active: true }, () => {
         if (chrome.runtime.lastError) return;
-        if (newTab) {
-          pendingNavigations.set(newTab.id, Date.now());
-          bringWindowForward(newTab.windowId);
-        }
+        chrome.scripting.executeScript({
+          target: { tabId: existing.id },
+          func: (targetUrl) => {
+            // Experimental: ask WhatsApp's single-page app to handle the route
+            // without navigating the whole document.
+            const target = new URL(targetUrl);
+            history.pushState({}, "", target.pathname + target.search);
+            window.dispatchEvent(new PopStateEvent("popstate"));
+          },
+          args: [url]
+        }, () => {
+          if (chrome.runtime.lastError) {
+            console.warn("[Aqua WA test] SPA navigation could not be injected.");
+          } else {
+            console.info("[Aqua WA test] SPA navigation request sent; verify the correct chat opens.");
+          }
+          bringWindowForward(existing.windowId);
+        });
+    } else {
+      console.info("[Aqua WA test] No WhatsApp tab found; opening a new tab normally.");
+      chrome.tabs.create({ url: url, active: true }, (newTab) => {
+        if (chrome.runtime.lastError || !newTab) return;
+        bringWindowForward(newTab.windowId);
       });
     }
   });
