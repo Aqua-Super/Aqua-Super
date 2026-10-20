@@ -44,8 +44,9 @@ chrome.runtime.onMessage.addListener((request) => {
           } else {
             console.info("[Aqua WA test] SPA navigation request sent; verify the correct chat opens.");
           }
-          bringWindowForward(existing.windowId);
         });
+        bringWindowForward(existing.windowId);
+      });
     } else {
       console.info("[Aqua WA test] No WhatsApp tab found; opening a new tab normally.");
       chrome.tabs.create({ url: url, active: true }, (newTab) => {
