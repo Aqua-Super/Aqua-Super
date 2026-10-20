@@ -680,13 +680,14 @@ function filterEntryCustomers(){
    if(document.getElementById("eprev")) document.getElementById("eprev").textContent=money(0);
    return;
  }
- var list=db.customers.slice().sort(function(a,b){
-   return a.name.localeCompare(b.name,undefined,{sensitivity:"base"});
- });
+ // Avoid sorting a new copy on every keystroke, which adds unnecessary work on desktop.
+ var list=db.customers||[];
  var matches=[];
  for(var i=0;i<list.length;i++){
    var c=list[i];
-   if(c.name.toLowerCase().indexOf(q)>=0 || String(c.mobile).indexOf(q)>=0) matches.push(c);
+   var customerName=String(c.name||"").toLowerCase();
+   var customerMobile=String(c.mobile||c.phone||"");
+   if(customerName.indexOf(q)>=0 || customerMobile.indexOf(q)>=0) matches.push(c);
  }
  if(matches.length===0){
    result.innerHTML='<div class="small">Customer nahi mila.</div>';
