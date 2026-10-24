@@ -662,7 +662,7 @@ function entry(){
  '<h2>🫙 Jar</h2><div class="row"><div><label>Jar Given</label><input id="jg" type="number" min="0" placeholder="" placeholder="" placeholder=""></div><div><label>Empty Jar Received</label><input id="je" type="number" min="0" placeholder="" placeholder="" placeholder=""></div></div>'+
  '<h2>🥫 Can</h2><div class="row"><div><label>Can Given</label><input id="cg" type="number" min="0" placeholder="" placeholder="" placeholder=""></div><div><label>Empty Can Received</label><input id="ce" type="number" min="0" placeholder="" placeholder="" placeholder=""></div></div>'+
  '<label>Payment Received</label><input id="pay" type="number" min="0" placeholder="" placeholder="" placeholder="">'+
- '<div id="preview" class="msg">Customer select karne ke liye upar naam ya mobile search karein.</div><br><button onclick="saveEntry(false)">💾 Save Entry</button><br><br><button onclick="saveEntry(true)">🟢 Save + Send WhatsApp</button><br><br><button onclick="saveEntrySMS()">💬 Save + Send SMS</button></div>';
+ '<div id="preview" class="msg">Customer select karne ke liye upar naam ya mobile search karein.</div><br><button onclick="saveEntry(true)">🟢 Save + Send WhatsApp</button><br><br><button onclick="saveEntrySMS()">💬 Save + Send SMS</button><br><br><button onclick="saveEntry(false)">💾 Save Entry</button></div>';
 
  ["jg","je","cg","ce","pay","ejr","ecr"].forEach(function(id){
    var field=document.getElementById(id);
