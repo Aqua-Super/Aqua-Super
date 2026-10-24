@@ -1992,6 +1992,9 @@ function aquaImportOldBackup(){
         return false;
       });
 
+      /* Keep the live Daily Entry DOM intact during background sync. */
+      if(activeId==="nEntry")return;
+
       if(activeId==="nHome" && typeof home==="function")home();
       else if(activeId==="nCust" && typeof customers==="function")customers();
       else if(activeId==="nEntry" && typeof entry==="function")entry();
