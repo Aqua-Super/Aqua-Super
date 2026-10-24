@@ -1976,6 +1976,10 @@ function aquaImportOldBackup(){
     aquaLiveSetTopStatus("ok","Synced • "+liveTimeLabel()+" • Rev "+Number(window.__AQUA_LIVE_REVISION||0));
 
     if(forceReload){
+      var entryNav=document.getElementById("nEntry");
+      /* A background sync must not reload or rebuild Daily Entry: doing so
+         clears the selected customer and any in-progress entry on both devices. */
+      if(entryNav && entryNav.className==="active")return;
       setTimeout(function(){location.reload();},250);
       return;
     }
@@ -1987,6 +1991,9 @@ function aquaImportOldBackup(){
         if(el && el.className==="active"){activeId=id;return true;}
         return false;
       });
+
+      /* Keep the live Daily Entry DOM intact during background sync. */
+      if(activeId==="nEntry")return;
 
       if(activeId==="nHome" && typeof home==="function")home();
       else if(activeId==="nCust" && typeof customers==="function")customers();
